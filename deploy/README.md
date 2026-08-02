@@ -32,6 +32,7 @@ Replace `homeserver.lan` with the homeserver's private DNS name or IP, then star
 $env:PI_OTLP_ENABLE = "1"
 $env:OTEL_METRICS_EXPORTER = "otlp"
 $env:OTEL_EXPORTER_OTLP_ENDPOINT = "http://homeserver.lan:4318"
+$env:PI_OTLP_DEVICE_NAME = "desktop" # Use a distinct name on each machine.
 pi
 ```
 
