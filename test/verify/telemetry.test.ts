@@ -407,6 +407,32 @@ describe("TelemetryCollector", () => {
       });
     });
 
+    it("keeps parallel calls to the same tool separate", () => {
+      let time = 1000;
+      collector._setTimeSource?.(() => time);
+
+      collector.recordSessionStart({ sessionId: "sess-123" });
+      collector.recordToolCall({ toolCallId: "read-1", toolName: "Read" });
+      time = 1050;
+      collector.recordToolCall({ toolCallId: "read-2", toolName: "Read" });
+      time = 1150;
+      collector.recordToolResult({ toolCallId: "read-2", toolName: "Read", success: true });
+      time = 1200;
+      collector.recordToolResult({ toolCallId: "read-1", toolName: "Read", success: true });
+
+      const histogram = histograms.get("pi.tool.duration");
+      expect(histogram?.record).toHaveBeenCalledWith(0.1, {
+        ...baseAttrs("sess-123"),
+        "tool.name": "Read",
+        success: "true",
+      });
+      expect(histogram?.record).toHaveBeenCalledWith(0.2, {
+        ...baseAttrs("sess-123"),
+        "tool.name": "Read",
+        success: "true",
+      });
+    });
+
     it("does not record session duration if session was not started", () => {
       collector.recordSessionEnd();
 

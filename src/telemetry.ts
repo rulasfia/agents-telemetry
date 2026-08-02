@@ -20,8 +20,9 @@ export interface TelemetryCollector {
   recordSessionEnd(): void;
   recordTurnStart(): void;
   recordTurnEnd(): void;
-  recordToolCall(attrs: { toolName: string }): void;
+  recordToolCall(attrs: { toolCallId?: string; toolName: string }): void;
   recordToolResult(attrs: {
+    toolCallId?: string;
     toolName: string;
     success: boolean;
   }): void;
@@ -216,7 +217,7 @@ export function createTelemetryCollector(meter: Meter): TelemetryCollector {
     },
 
     recordToolCall(attrs) {
-      toolStartTimes.set(attrs.toolName, now());
+      toolStartTimes.set(attrs.toolCallId ?? attrs.toolName, now());
       counters.toolCallCounter.add(1, {
         ...getBaseAttrs(),
         "tool.name": attrs.toolName,
@@ -225,7 +226,8 @@ export function createTelemetryCollector(meter: Meter): TelemetryCollector {
     },
 
     recordToolResult(attrs) {
-      const startTime = toolStartTimes.get(attrs.toolName);
+      const toolKey = attrs.toolCallId ?? attrs.toolName;
+      const startTime = toolStartTimes.get(toolKey);
       if (startTime !== undefined) {
         const durationMs = now() - startTime;
         const durationS = durationMs / 1000;
@@ -237,7 +239,7 @@ export function createTelemetryCollector(meter: Meter): TelemetryCollector {
         status.durations.tool.count++;
         status.durations.tool.totalMs += durationMs;
         status.durations.tool.lastMs = durationMs;
-        toolStartTimes.delete(attrs.toolName);
+        toolStartTimes.delete(toolKey);
       }
       counters.toolResultCounter.add(1, {
         ...getBaseAttrs(),

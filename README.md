@@ -7,16 +7,10 @@ OpenTelemetry metrics extension for [pi-coding-agent](https://github.com/badlogi
 ## Installation
 
 ```bash
-pi install npm:@mobrienv/pi-otlp
+pi install C:\\Users\\rulasfia\\.pi\\pi-otlp
 ```
 
-Or add to `~/.pi/agent/settings.json`:
-
-```json
-{
-  "extensions": ["~/path/to/pi-otlp"]
-}
-```
+This local package is loaded directly from disk, so source changes take effect after `/reload`.
 
 ## Configuration
 
@@ -31,13 +25,19 @@ export OTEL_METRICS_EXPORTER=console
 
 # For OTLP export (e.g., to Grafana, Datadog, or any OTLP-compatible backend)
 export OTEL_METRICS_EXPORTER=otlp
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/metrics
+
+# Base endpoint: the extension appends /v1/metrics.
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://homeserver:4318
+
+# Or use a complete metrics endpoint verbatim (takes precedence over the base endpoint).
+export OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://homeserver:4318/v1/metrics
 
 # Optional: export interval (default: 60000ms)
 export OTEL_METRIC_EXPORT_INTERVAL=10000
 
-# Optional: OTLP headers for authentication
+# Optional: OTLP headers for authentication. Signal-specific headers override these.
 export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer token"
+export OTEL_EXPORTER_OTLP_METRICS_HEADERS="Authorization=Bearer metrics-token"
 
 # Optional: debug logging
 export PI_OTLP_DEBUG=1
@@ -47,7 +47,9 @@ export PI_OTLP_DEBUG=1
 
 ### Counters
 
-All counters include base attributes: `session.id`, `provider`, `model`
+All counters include base attributes: `session.id`, `provider`, `model`.
+
+> `session.id` is high-cardinality. Drop it in the collector before Prometheus for long-lived aggregate metrics.
 
 | Metric | Description | Additional Attributes |
 |--------|-------------|----------------------|
@@ -61,7 +63,7 @@ All counters include base attributes: `session.id`, `provider`, `model`
 
 ### Histograms
 
-All histograms include base attributes: `session.id`, `provider`, `model`
+All histograms include base attributes: `session.id`, `provider`, `model`.
 
 | Metric | Description | Unit | Additional Attributes |
 |--------|-------------|------|----------------------|

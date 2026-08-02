@@ -114,8 +114,9 @@ describe("Extension", () => {
     expect(api.handlers.has("session_shutdown")).toBe(true);
     expect(api.handlers.has("turn_start")).toBe(true);
     expect(api.handlers.has("turn_end")).toBe(true);
-    expect(api.handlers.has("tool_call")).toBe(true);
-    expect(api.handlers.has("tool_result")).toBe(true);
+    expect(api.handlers.has("tool_execution_start")).toBe(true);
+    expect(api.handlers.has("tool_execution_end")).toBe(true);
+    expect(api.handlers.has("model_select")).toBe(true);
     expect(api.handlers.has("input")).toBe(true);
   });
 

@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { metrics, DiagLogLevel, diag } from "@opentelemetry/api";
 import type { DiagLogger } from "@opentelemetry/api";
 import {
@@ -150,17 +150,25 @@ export default function (pi: ExtensionAPI) {
   });
 
   // Tool events
-  pi.on("tool_call", async (event) => {
+  pi.on("tool_execution_start", async (event) => {
     collector?.recordToolCall({
+      toolCallId: event.toolCallId,
       toolName: event.toolName,
     });
   });
 
-  pi.on("tool_result", async (event) => {
+  pi.on("tool_execution_end", async (event) => {
     collector?.recordToolResult({
+      toolCallId: event.toolCallId,
       toolName: event.toolName,
       success: !event.isError,
     });
+  });
+
+  pi.on("model_select", async (event) => {
+    currentProvider = event.model.provider;
+    currentModel = event.model.id;
+    collector?.setProviderModel(currentProvider, currentModel);
   });
 
   // User input event
