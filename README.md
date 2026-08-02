@@ -6,11 +6,13 @@ OpenTelemetry metrics extension for [pi-coding-agent](https://github.com/badlogi
 
 ## Installation
 
+Install from a local clone:
+
 ```bash
-pi install C:\\Users\\rulasfia\\.pi\\pi-otlp
+pi install /absolute/path/to/pi-otlp
 ```
 
-This local package is loaded directly from disk, so source changes take effect after `/reload`.
+The local package is loaded directly from disk, so source changes take effect after `/reload`.
 
 ## Configuration
 
