@@ -1,6 +1,6 @@
 {
-  "name": "@mobrienv/pi-otlp",
-  "version": "0.2.0",
+  "name": "@rulasfia/pi-otlp",
+  "version": "0.2.1",
   "description": "OpenTelemetry metrics and events extension for pi-coding-agent",
   "license": "MIT",
   "author": "mikeyobrien",
@@ -16,10 +16,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mikeyobrien/pi-otlp.git"
+    "url": "git+https://github.com/rulasfia/pi-otlp.git"
   },
-  "bugs": "https://github.com/mikeyobrien/pi-otlp/issues",
-  "homepage": "https://github.com/mikeyobrien/pi-otlp",
+  "bugs": "https://github.com/rulasfia/pi-otlp/issues",
+  "homepage": "https://github.com/rulasfia/pi-otlp",
   "type": "module",
   "pi": {
     "extensions": [
@@ -27,7 +27,7 @@
     ]
   },
   "peerDependencies": {
-    "@mariozechner/pi-coding-agent": ">=0.42.0"
+    "@earendil-works/pi-coding-agent": "*"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",

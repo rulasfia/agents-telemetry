@@ -14,12 +14,16 @@ export function getConfig(): OtlpConfig {
   const exporterStr = process.env.OTEL_METRICS_EXPORTER ?? "console";
   const exporters = exporterStr.split(",").map((e) => e.trim()) as ("console" | "otlp")[];
 
-  const otlpEndpoint =
-    process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT ??
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT ??
-    "http://localhost:4318/v1/metrics";
+  const metricsEndpoint = process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT;
+  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+  const otlpEndpoint = metricsEndpoint ?? (endpoint
+    ? `${endpoint.replace(/\/+$/, "").replace(/\/v1\/metrics$/, "")}/v1/metrics`
+    : "http://localhost:4318/v1/metrics");
 
-  const otlpHeaders = parseHeaders(process.env.OTEL_EXPORTER_OTLP_HEADERS ?? "");
+  const otlpHeaders = {
+    ...parseHeaders(process.env.OTEL_EXPORTER_OTLP_HEADERS ?? ""),
+    ...parseHeaders(process.env.OTEL_EXPORTER_OTLP_METRICS_HEADERS ?? ""),
+  };
 
   const exportIntervalMs = parseInt(
     process.env.OTEL_METRIC_EXPORT_INTERVAL ?? "60000",

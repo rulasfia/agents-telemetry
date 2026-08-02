@@ -36,10 +36,16 @@ describe("getConfig", () => {
     expect(config.exporters).toEqual(["console"]);
   });
 
-  it("uses OTEL_EXPORTER_OTLP_ENDPOINT", () => {
+  it("appends /v1/metrics to OTEL_EXPORTER_OTLP_ENDPOINT", () => {
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://collector:4318";
     const config = getConfig();
-    expect(config.otlpEndpoint).toBe("http://collector:4318");
+    expect(config.otlpEndpoint).toBe("http://collector:4318/v1/metrics");
+  });
+
+  it("preserves a metrics endpoint exactly", () => {
+    process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT = "http://collector:4318/custom";
+    const config = getConfig();
+    expect(config.otlpEndpoint).toBe("http://collector:4318/custom");
   });
 
   it("prefers OTEL_EXPORTER_OTLP_METRICS_ENDPOINT over general endpoint", () => {
@@ -49,11 +55,12 @@ describe("getConfig", () => {
     expect(config.otlpEndpoint).toBe("http://metrics:4318");
   });
 
-  it("parses OTEL_EXPORTER_OTLP_HEADERS", () => {
+  it("uses metrics headers in preference to general OTLP headers", () => {
     process.env.OTEL_EXPORTER_OTLP_HEADERS = "Authorization=Bearer token,X-Api-Key=key123";
+    process.env.OTEL_EXPORTER_OTLP_METRICS_HEADERS = "Authorization=Bearer metrics-token";
     const config = getConfig();
     expect(config.otlpHeaders).toEqual({
-      Authorization: "Bearer token",
+      Authorization: "Bearer metrics-token",
       "X-Api-Key": "key123",
     });
   });
