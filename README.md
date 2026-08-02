@@ -37,6 +37,9 @@ export OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://homeserver:4318/v1/metrics
 # Optional: export interval (default: 60000ms)
 export OTEL_METRIC_EXPORT_INTERVAL=10000
 
+# Optional: stable, friendly device label for multi-device dashboards.
+export PI_OTLP_DEVICE_NAME=desktop
+
 # Optional: OTLP headers for authentication. Signal-specific headers override these.
 export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer token"
 export OTEL_EXPORTER_OTLP_METRICS_HEADERS="Authorization=Bearer metrics-token"

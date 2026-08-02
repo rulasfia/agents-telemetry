@@ -70,4 +70,16 @@ describe("getConfig", () => {
     const config = getConfig();
     expect(config.exportIntervalMs).toBe(5000);
   });
+
+  it("uses a trimmed device name when configured", () => {
+    process.env.PI_OTLP_DEVICE_NAME = "  desktop  ";
+    const config = getConfig();
+    expect(config.deviceName).toBe("desktop");
+  });
+
+  it("omits an empty device name", () => {
+    process.env.PI_OTLP_DEVICE_NAME = "   ";
+    const config = getConfig();
+    expect(config.deviceName).toBeUndefined();
+  });
 });

@@ -73,6 +73,7 @@ export default function (pi: ExtensionAPI) {
     [ATTR_SERVICE_VERSION]: VERSION,
     "os.type": process.platform,
     "host.arch": process.arch,
+    ...(config.deviceName ? { "device.name": config.deviceName } : {}),
   });
 
   const readers = [];

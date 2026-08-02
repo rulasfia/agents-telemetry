@@ -5,6 +5,7 @@ export interface OtlpConfig {
   otlpEndpoint: string;
   otlpHeaders: Record<string, string>;
   exportIntervalMs: number;
+  deviceName?: string;
 }
 
 export function getConfig(): OtlpConfig {
@@ -29,6 +30,7 @@ export function getConfig(): OtlpConfig {
     process.env.OTEL_METRIC_EXPORT_INTERVAL ?? "60000",
     10
   );
+  const deviceName = process.env.PI_OTLP_DEVICE_NAME?.trim() || undefined;
 
   return {
     enabled,
@@ -37,6 +39,7 @@ export function getConfig(): OtlpConfig {
     otlpEndpoint,
     otlpHeaders,
     exportIntervalMs,
+    deviceName,
   };
 }
 

@@ -1,0 +1,50 @@
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:${OTELCOL_VERSION:-0.157.0}
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      # Restrict this port to your LAN/VPN in the host firewall. Never port-forward it.
+      - "${OTLP_BIND_ADDRESS:-0.0.0.0}:4318:4318"
+    networks: [telemetry]
+
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_VERSION:-v3.13.2}
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks: [telemetry]
+
+  grafana:
+    image: grafana/grafana:${GRAFANA_VERSION:-13.1.1}
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?Set GRAFANA_ADMIN_USER in .env}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ../demo/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../demo/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      # Loopback by default; use a reverse proxy, VPN, or SSH tunnel for access.
+      - "${GRAFANA_BIND_ADDRESS:-127.0.0.1}:3000:3000"
+    depends_on:
+      - prometheus
+    networks: [telemetry]
+
+networks:
+  telemetry:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
