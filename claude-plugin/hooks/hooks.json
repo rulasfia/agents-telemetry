@@ -1,0 +1,86 @@
+{
+  "description": "Emit pi-compatible OTLP metrics from Claude Code lifecycle events. UserPromptSubmit and the tool hooks run async so telemetry stays off the critical path; SessionStart, Stop and SessionEnd run synchronously because they can be immediately followed by process exit, which would kill a backgrounded hook before it flushes.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude-plugin/src/bridge.js"],
+            "timeout": 10,
+            "statusMessage": "OTLP session start"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude-plugin/src/bridge.js"],
+            "timeout": 10,
+            "async": true,
+            "statusMessage": "OTLP prompt submit"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude-plugin/src/bridge.js"],
+            "timeout": 10,
+            "async": true,
+            "statusMessage": "OTLP tool end"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude-plugin/src/bridge.js"],
+            "timeout": 10,
+            "async": true,
+            "statusMessage": "OTLP tool failure"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude-plugin/src/bridge.js"],
+            "timeout": 10,
+            "statusMessage": "OTLP turn end"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude-plugin/src/bridge.js"],
+            "timeout": 15,
+            "statusMessage": "OTLP session flush"
+          }
+        ]
+      }
+    ]
+  }
+}

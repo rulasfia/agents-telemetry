@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    // The bridge shares src/config.ts with the pi extension, so the build root
+    // is the repo root. Emitted layout: dist/claude-plugin/src/bridge.js and
+    // dist/src/config.js — hooks.json points at the former.
+    "rootDir": ".."
+  },
+  "include": ["src/**/*", "../src/config.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+}
