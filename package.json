@@ -1,6 +1,6 @@
 {
   "name": "@rulasfia/agents-telemetry",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "OpenTelemetry metrics and events extension for pi-coding-agent",
   "license": "MIT",
   "author": "rulasfia",
