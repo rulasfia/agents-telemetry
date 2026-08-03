@@ -1,49 +1,66 @@
 # agents-telemetry
 
-OpenTelemetry metrics extension for [pi-coding-agent](https://github.com/badlogic/pi-mono). Track sessions, turns, tool usage, token consumption, costs, and performance timing.
+OpenTelemetry metrics for [pi-coding-agent](https://github.com/badlogic/pi-mono) **and** [Claude Code](https://claude.com/claude-code). Track sessions, turns, tool usage, token consumption, costs, and performance timing.
 
 <img width="1055" height="856" alt="Screenshot 2026-02-12 at 4 14 58 PM" src="https://github.com/user-attachments/assets/a6a377de-f659-4b8c-8f40-8c9038eb92a6" />
 
+Both agents emit the **same `pi.*` metric names**, so one dashboard covers both. They are told apart by `service_name`: `pi-coding-agent` vs `pi-otlp-claude`.
+
 ## Installation
+
+Each agent installs with a single command — no clone, no build step.
 
 ### pi-coding-agent
 
-Install from a local clone:
+```bash
+pi install git:github.com/rulasfia/agents-telemetry
+```
+
+The extension is loaded directly from source, so there is nothing to compile.
+
+To hack on it, install from a local clone instead — source changes take effect after `/reload`:
 
 ```bash
 pi install /absolute/path/to/agents-telemetry
 ```
 
-The local package is loaded directly from disk, so source changes take effect after `/reload`.
-
 See [`pi/README.md`](./pi/README.md) for how the extension works internally.
 
 ### Claude Code
 
-Build the plugin first:
+Add the marketplace, then install the plugin:
 
-```bash
-cd /absolute/path/to/agents-telemetry
-npm run build:claude
+```
+/plugin marketplace add rulasfia/agents-telemetry
+/plugin install pi-otlp@agents-telemetry
 ```
 
-Then load it with `--plugin-dir`:
+The plugin ships as a single pre-bundled file with no runtime dependencies, so nothing is compiled or `npm install`ed on your machine. Pick up later releases with `/plugin marketplace update agents-telemetry`.
+
+To hack on it, build from a local clone and load that with `--plugin-dir`:
 
 ```bash
+npm ci && npm run build:claude
 claude --plugin-dir "$(pwd)/claude"
 ```
 
-To avoid passing the flag every time, add it to your shell profile as an alias:
+> **Note:** `--plugin-dir` must point at the `claude/` directory, not the repo root. `~/.claude/skills/` is for `SKILL.md` skills and does not load a plugin's hooks.
 
-```bash
-alias claude='claude --plugin-dir "/absolute/path/to/agents-telemetry/claude"'
-```
-
-> **Note:** `claude plugin install` is only for marketplace plugins, and `~/.claude/skills/` is for `SKILL.md` skills — neither loads a local plugin's hooks. Use `--plugin-dir`.
-
-> The plugin emits the **same `pi.*` metric names** as the pi extension, so your existing Grafana dashboards work unchanged. It does require one collector-side change — see [Delta temporality](#delta-temporality).
+> Your existing Grafana dashboards work unchanged, but the Claude Code plugin needs one collector-side change the pi extension does not — see [Delta temporality](#delta-temporality).
 
 See [`claude/README.md`](./claude/README.md) for how the hook bridge works internally.
+
+### Next step
+
+Neither emitter does anything until you enable it. At minimum:
+
+```bash
+export PI_OTLP_ENABLE=1
+export OTEL_METRICS_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+```
+
+See [Configuration](#configuration) for the full set.
 
 ## Configuration
 

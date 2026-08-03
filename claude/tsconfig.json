@@ -6,10 +6,11 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "outDir": "dist",
-    // The bridge shares pi/src/config.ts with the pi extension, so the build root
-    // is the repo root. Emitted layout: dist/claude/src/bridge.js and
-    // dist/pi/src/config.js — hooks.json points at the former.
+    // Typecheck only — `npm run typecheck:claude`. The shipped artifact is bundled
+    // by esbuild into claude/dist/bridge.cjs, not emitted by tsc.
+    "noEmit": true,
+    // The bridge shares pi/src/config.ts with the pi extension, so the project
+    // root is the repo root.
     "rootDir": ".."
   },
   "include": ["src/**/*", "../pi/src/config.ts"],

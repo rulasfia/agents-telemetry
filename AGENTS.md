@@ -17,11 +17,14 @@ Both emitters share `pi/src/config.ts` and emit the same `pi.*` metric names, bu
 
 ```bash
 npm ci
-npm run typecheck       # typecheck pi/ only; root tsconfig does not emit
+npm run typecheck       # both projects: typecheck:pi then typecheck:claude
 npm test                # all 71 tests via vitest defaults
 npm run test:watch      # vitest watch mode
-npm run build:claude    # compile the Claude plugin into claude/dist/
+npm run build:claude    # bundle the Claude plugin to claude/dist/bridge.cjs
 ```
+
+Neither tsconfig emits — `typecheck:pi` and `typecheck:claude` are both `--noEmit`. The
+only build output in the repo is the esbuild bundle.
 
 Run a single test file:
 
@@ -59,14 +62,29 @@ Both harnesses print the totals they expect, so a mismatch against `dev:metrics`
 
 - The pi extension is loaded directly from source by `pi-coding-agent`; it has no build step. Its entry point is declared in `package.json` under `"pi".extensions` → `pi/src/index.ts`.
 - `npm run build:claude` must be run after any change to `claude/src/`, `pi/src/config.ts`, or `claude/src/version.ts` before the Claude plugin sees it.
-- `claude/tsconfig.json` uses `"rootDir": ".."` so it can share `pi/src/config.ts`. Output lands at:
-  - `claude/dist/claude/src/bridge.js`
-  - `claude/dist/pi/src/config.js`
-- `claude/hooks/hooks.json` runs `${CLAUDE_PLUGIN_ROOT}/dist/claude/src/bridge.js`, so `claude --plugin-dir` must point at the `claude/` directory, not the repo root.
+- The build is esbuild, not tsc: everything bundles into the single file `claude/dist/bridge.cjs`, dependencies inlined. `claude/tsconfig.json` is `--noEmit` and exists only to typecheck (it keeps `"rootDir": ".."` so it can share `pi/src/config.ts`).
+- **`claude/dist/bridge.cjs` is committed**, against the usual rule. A marketplace install copies `claude/` into the plugin cache and runs no build and no `npm install`, so the runnable artifact has to be in the repo. `.gitignore` un-ignores exactly that one path. Rebuild and commit it with any `claude/src/` change, or installed users keep running the old code.
+- Two bundling constraints, both learned the hard way — don't "modernize" them:
+  - **Format must be `cjs`.** An ESM bundle dies at startup with `Dynamic require of "perf_hooks" is not supported`, because the OpenTelemetry SDK is CJS and does dynamic requires.
+  - **Extension must be `.cjs`.** Only `claude/` is copied on install, so the repo root `package.json` (`"type": "module"`) is absent and a bare `.js` would be resolved by whatever ambient package.json Node finds.
+- `claude/hooks/hooks.json` runs `${CLAUDE_PLUGIN_ROOT}/dist/bridge.cjs`, so `claude --plugin-dir` must point at the `claude/` directory, not the repo root.
+- `.claude-plugin/marketplace.json` at the repo root is the Claude Code marketplace catalog; it lists the plugin with `"source": "./claude"` (relative sources resolve against the marketplace root, the directory holding `.claude-plugin/`). Validate both manifests with `claude plugin validate .` and `claude plugin validate ./claude`.
+- The plugin is version-pinned by `version` in `claude/.claude-plugin/plugin.json`. Users only receive an update when that string changes, so bump it (alongside `package.json` and `claude/src/version.ts`) when releasing.
 
-## Loading the plugin locally
+## Installing
 
-### pi extension
+End users install each side with one command (see `README.md`):
+
+```bash
+pi install git:github.com/rulasfia/agents-telemetry   # pi extension
+```
+
+```
+/plugin marketplace add rulasfia/agents-telemetry     # Claude Code
+/plugin install pi-otlp@agents-telemetry
+```
+
+### Loading from a local checkout
 
 ```bash
 pi install /absolute/path/to/agents-telemetry
@@ -74,14 +92,12 @@ pi install /absolute/path/to/agents-telemetry
 
 Source changes take effect after the pi `/reload` command.
 
-### Claude Code plugin
-
 ```bash
 npm run build:claude
 claude --plugin-dir "$(pwd)/claude"
 ```
 
-Do not use `claude plugin install` or `~/.claude/skills/` for this repo — those paths do not load a local plugin's hooks.
+`~/.claude/skills/` does not load a plugin's hooks — use `--plugin-dir` for local work.
 
 ## Configuration gotchas
 
@@ -92,7 +108,7 @@ Do not use `claude plugin install` or `~/.claude/skills/` for this repo — thos
 
 ## Claude bridge behavior
 
-- Each hook event spawns a fresh `node claude/dist/claude/src/bridge.js` process that reads the event JSON from stdin.
+- Each hook event spawns a fresh `node claude/dist/bridge.cjs` process that reads the event JSON from stdin.
 - Because each process is short-lived, the bridge exports **delta** temporality. The collector must run the `deltatocumulative` processor to turn deltas into cumulative counters for Prometheus.
 - The bridge persists per-session state in `~/.pi/otlp-claude/` so it can resume across hooks.
 - The bridge does **not** emit `pi.cost.usage` — Claude Code hook events do not expose cost data.
@@ -125,7 +141,7 @@ Notes:
 ```bash
 npm run build:claude
 PI_OTLP_ENABLE=1 PI_OTLP_DEBUG=1 PI_OTLP_ENDPOINT=http://localhost:4318 \
-  node claude/dist/claude/src/bridge.js <<'EOF'
+  node claude/dist/bridge.cjs <<'EOF'
 {"hook_event_name":"SessionStart","session_id":"test","model":{"provider":"anthropic","id":"claude-sonnet-5"}}
 EOF
 ```

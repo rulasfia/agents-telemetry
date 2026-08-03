@@ -137,17 +137,31 @@ shared with the pi extension.
 
 ## Build layout
 
-`tsconfig.json` sets `"rootDir": ".."` so the shared `pi/src/config.ts` can be
-compiled alongside the bridge. That pushes the repo structure into `dist/`:
+`npm run build:claude` runs esbuild, not tsc, and produces exactly one file:
 
 ```
-claude/dist/claude/src/bridge.js   <-- the hook entry point
-claude/dist/pi/src/config.js
+claude/dist/bridge.cjs   <-- the hook entry point, ~456 KB, deps inlined
 ```
+
+The shared `pi/src/config.ts` and every `@opentelemetry/*` package are bundled
+in, so the installed plugin has no `node_modules` and no install step.
+`tsconfig.json` is `--noEmit`; it exists only so `npm run typecheck` covers this
+directory, and keeps `"rootDir": ".."` to reach the shared config.
 
 Consequences worth remembering:
 
-- `hooks/hooks.json` runs `${CLAUDE_PLUGIN_ROOT}/dist/claude/src/bridge.js`, so
+- **The bundle is committed to git.** A marketplace install copies `claude/`
+  into the plugin cache and runs neither a build nor `npm install`, so the
+  runnable file has to already be there. `.gitignore` un-ignores exactly
+  `claude/dist/bridge.cjs`. Rebuild *and commit* it alongside any `claude/src/`
+  change, or installed users keep running the previous version.
+- **The output must be CommonJS with a `.cjs` extension.** An ESM bundle throws
+  `Dynamic require of "perf_hooks" is not supported` at startup, because the
+  OpenTelemetry SDK is CJS and uses dynamic requires. The explicit `.cjs`
+  extension matters because only `claude/` is copied on install — the repo root
+  `package.json` and its `"type": "module"` are not present to disambiguate a
+  bare `.js`.
+- `hooks/hooks.json` runs `${CLAUDE_PLUGIN_ROOT}/dist/bridge.cjs`, so
   `claude --plugin-dir` must point at **`claude/`**, not the repo root.
 - `npm run build:claude` is required after any edit to `claude/src/` *or*
   `pi/src/config.ts`. Nothing rebuilds automatically; a stale `dist/` is the most
@@ -303,7 +317,8 @@ progressively:
 | `pi.cost.usage` | emitted | **not available** |
 | State | in-memory closure | `~/.pi/otlp-claude/*.json` |
 | Honours `OTEL_METRICS_EXPORTER` | yes | no (always OTLP) |
-| Build | none, loaded from source | `npm run build:claude` |
+| Build | none, loaded from source | esbuild bundle, committed to git |
+| Install | `pi install git:github.com/rulasfia/agents-telemetry` | `/plugin install pi-otlp@agents-telemetry` |
 
 Metric names and attributes are otherwise identical, so both sources land in the
 same dashboard panels and are told apart by the `service_name` label.
@@ -328,7 +343,7 @@ Run one event by hand, no Claude Code involved:
 ```bash
 npm run build:claude
 PI_OTLP_ENABLE=1 PI_OTLP_DEBUG=1 PI_OTLP_ENDPOINT=http://localhost:4418 \
-  node claude/dist/claude/src/bridge.js <<'EOF'
+  node claude/dist/bridge.cjs <<'EOF'
 {"hook_event_name":"SessionStart","session_id":"test","model":{"provider":"anthropic","id":"claude-sonnet-5"}}
 EOF
 ```

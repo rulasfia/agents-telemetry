@@ -1,5 +1,13 @@
 node_modules/
 dist/
+
+# The Claude plugin ships as a committed, dependency-free bundle: a marketplace
+# install only copies claude/ into the plugin cache, with no build or npm install
+# step, so the built artifact has to be in the repo.
+!claude/dist/
+claude/dist/*
+!claude/dist/bridge.cjs
+
 *.log
 .DS_Store
 stack/dev-out/

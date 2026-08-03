@@ -19,7 +19,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-const bridge = join(repoRoot, "claude", "dist", "claude", "src", "bridge.js");
+const bridge = join(repoRoot, "claude", "dist", "bridge.cjs");
 
 const endpoint = process.env.PI_OTLP_ENDPOINT ?? "http://localhost:4418";
 const sessionId = process.env.DEV_SESSION_ID ?? `dev-${Date.now()}`;
