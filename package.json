@@ -1,5 +1,5 @@
 {
-  "name": "@rulasfia/pi-otlp",
+  "name": "@rulasfia/agents-telemetry",
   "version": "0.2.1",
   "description": "OpenTelemetry metrics and events extension for pi-coding-agent",
   "license": "MIT",
@@ -16,10 +16,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rulasfia/pi-otlp.git"
+    "url": "git+https://github.com/rulasfia/agents-telemetry.git"
   },
-  "bugs": "https://github.com/rulasfia/pi-otlp/issues",
-  "homepage": "https://github.com/rulasfia/pi-otlp",
+  "bugs": "https://github.com/rulasfia/agents-telemetry/issues",
+  "homepage": "https://github.com/rulasfia/agents-telemetry",
   "type": "module",
   "pi": {
     "extensions": [
@@ -45,6 +45,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:claude": "tsc -p claude-plugin/tsconfig.json"
   }
 }

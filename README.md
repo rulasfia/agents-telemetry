@@ -1,4 +1,4 @@
-# pi-otlp
+# agents-telemetry
 
 OpenTelemetry metrics extension for [pi-coding-agent](https://github.com/badlogic/pi-mono). Track sessions, turns, tool usage, token consumption, costs, and performance timing.
 
@@ -6,20 +6,47 @@ OpenTelemetry metrics extension for [pi-coding-agent](https://github.com/badlogi
 
 ## Installation
 
+### pi-coding-agent
+
 Install from a local clone:
 
 ```bash
-pi install /absolute/path/to/pi-otlp
+pi install /absolute/path/to/agents-telemetry
 ```
 
 The local package is loaded directly from disk, so source changes take effect after `/reload`.
+
+### Claude Code
+
+Build the plugin first:
+
+```bash
+cd /absolute/path/to/agents-telemetry
+npm run build:claude
+```
+
+Then load it with `--plugin-dir`:
+
+```bash
+claude --plugin-dir "$(pwd)/claude-plugin"
+```
+
+To avoid passing the flag every time, add it to your shell profile as an alias:
+
+```bash
+alias claude='claude --plugin-dir "/absolute/path/to/agents-telemetry/claude-plugin"'
+```
+
+> **Note:** `claude plugin install` is only for marketplace plugins, and `~/.claude/skills/` is for `SKILL.md` skills — neither loads a local plugin's hooks. Use `--plugin-dir`.
+
+> The plugin emits the **same `pi.*` metric names** as the pi extension, so your existing Grafana dashboards work unchanged. It does require one collector-side change — see [Delta temporality](#delta-temporality).
 
 ## Configuration
 
 Enable via environment variables:
 
 ```bash
-# Required: enable the extension
+# Required: enable the extension / plugin
 export PI_OTLP_ENABLE=1
 
 # Choose exporters (console, otlp, or both)
@@ -48,7 +75,57 @@ export OTEL_EXPORTER_OTLP_METRICS_HEADERS="Authorization=Bearer metrics-token"
 export PI_OTLP_DEBUG=1
 ```
 
+### Claude Code compatibility
+
+Claude Code strips `OTEL_*` environment variables from hook subprocesses. To keep one shared config, the plugin also reads `PI_OTLP_*` fallbacks:
+
+```bash
+export PI_OTLP_ENABLE=1
+
+# Base endpoint — /v1/metrics is appended, mirroring OTEL_EXPORTER_OTLP_ENDPOINT.
+export PI_OTLP_ENDPOINT=http://homeserver:4318
+
+# Or a complete metrics endpoint used verbatim, mirroring
+# OTEL_EXPORTER_OTLP_METRICS_ENDPOINT (takes precedence over the base form).
+export PI_OTLP_METRICS_ENDPOINT=http://homeserver:4318/v1/metrics
+
+export PI_OTLP_HEADERS="Authorization=Bearer token"
+export PI_OTLP_METRICS_HEADERS="Authorization=Bearer metrics-token"
+export PI_OTLP_EXPORT_INTERVAL=10000
+```
+
+These work for both pi and Claude Code without duplication. Each `PI_OTLP_*`
+variable is the fallback for exactly one `OTEL_*` variable; the `OTEL_*` form
+wins when both are set.
+
+### Delta temporality
+
+Claude Code runs each hook in its own short-lived process, so the plugin has no
+long-running meter to accumulate into. It exports **delta** metrics and relies
+on the collector to convert them, because a cumulative counter would restart at
+zero on every hook and Prometheus would see a permanently flat series.
+
+Add the `deltatocumulative` processor to your collector's metrics pipeline
+(already configured in [`deploy/`](./deploy) and [`demo/`](./demo)):
+
+```yaml
+processors:
+  deltatocumulative:
+
+service:
+  pipelines:
+    metrics:
+      processors: [deltatocumulative, batch]
+```
+
+It requires opentelemetry-collector-contrib **v0.104.0 or newer**. Backends that
+ingest OTLP directly and handle delta sums natively (Grafana Cloud, Datadog,
+and similar) need no extra configuration. The pi extension is unaffected — it
+exports cumulative from a single long-lived process.
+
 ## Metrics
+
+> **Claude Code note:** The plugin emits the same metric names so dashboards work unchanged, with one exception. Cost (`pi.cost.usage`) is not available from Claude Code hook events — use Claude Code's native `claude_code.cost.usage` metric if you need cost tracking there. Token usage *is* reported: the `Stop` hook carries no usage payload, so the plugin reads it incrementally from the session transcript, summing every assistant message in the turn.
 
 ### Counters
 
@@ -109,6 +186,11 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 
+processors:
+  # Required by the Claude Code plugin; harmless for the pi extension.
+  # See "Delta temporality" above.
+  deltatocumulative:
+
 exporters:
   prometheus:
     endpoint: 0.0.0.0:8889
@@ -117,6 +199,7 @@ service:
   pipelines:
     metrics:
       receivers: [otlp]
+      processors: [deltatocumulative]
       exporters: [prometheus]
 ```
 
