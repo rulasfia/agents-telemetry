@@ -5,7 +5,13 @@ describe("getConfig", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    process.env = { ...originalEnv };
+    // Strip telemetry vars so a developer's real PI_OTLP_*/OTEL_* environment
+    // can't leak into assertions about defaults.
+    process.env = Object.fromEntries(
+      Object.entries(originalEnv).filter(
+        ([key]) => !key.startsWith("PI_OTLP_") && !key.startsWith("OTEL_"),
+      ),
+    );
   });
 
   afterEach(() => {
@@ -55,6 +61,25 @@ describe("getConfig", () => {
     expect(config.otlpEndpoint).toBe("http://metrics:4318");
   });
 
+  it("appends /v1/metrics to PI_OTLP_ENDPOINT", () => {
+    process.env.PI_OTLP_ENDPOINT = "http://homeserver:4318";
+    const config = getConfig();
+    expect(config.otlpEndpoint).toBe("http://homeserver:4318/v1/metrics");
+  });
+
+  it("preserves PI_OTLP_METRICS_ENDPOINT exactly", () => {
+    process.env.PI_OTLP_METRICS_ENDPOINT = "http://homeserver:4318/custom";
+    const config = getConfig();
+    expect(config.otlpEndpoint).toBe("http://homeserver:4318/custom");
+  });
+
+  it("prefers OTEL endpoints over PI_OTLP fallbacks", () => {
+    process.env.PI_OTLP_ENDPOINT = "http://fallback:4318";
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://primary:4318";
+    const config = getConfig();
+    expect(config.otlpEndpoint).toBe("http://primary:4318/v1/metrics");
+  });
+
   it("uses metrics headers in preference to general OTLP headers", () => {
     process.env.OTEL_EXPORTER_OTLP_HEADERS = "Authorization=Bearer token,X-Api-Key=key123";
     process.env.OTEL_EXPORTER_OTLP_METRICS_HEADERS = "Authorization=Bearer metrics-token";
@@ -69,6 +94,12 @@ describe("getConfig", () => {
     process.env.OTEL_METRIC_EXPORT_INTERVAL = "5000";
     const config = getConfig();
     expect(config.exportIntervalMs).toBe(5000);
+  });
+
+  it("falls back to the default interval when unparseable", () => {
+    process.env.OTEL_METRIC_EXPORT_INTERVAL = "not-a-number";
+    const config = getConfig();
+    expect(config.exportIntervalMs).toBe(60000);
   });
 
   it("uses a trimmed device name when configured", () => {

@@ -9,7 +9,13 @@ describe("Config Edge Cases", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    process.env = { ...originalEnv };
+    // Strip telemetry vars so a developer's real PI_OTLP_*/OTEL_* environment
+    // can't leak into assertions about defaults.
+    process.env = Object.fromEntries(
+      Object.entries(originalEnv).filter(
+        ([key]) => !key.startsWith("PI_OTLP_") && !key.startsWith("OTEL_"),
+      ),
+    );
   });
 
   afterEach(() => {
@@ -65,22 +71,24 @@ describe("Config Edge Cases", () => {
   });
 
   describe("export interval parsing", () => {
+    // A NaN, zero, or negative interval would misconfigure the metric reader,
+    // so each falls back to the 60s default rather than being passed through.
     it("uses default when not a valid number", () => {
       process.env.OTEL_METRIC_EXPORT_INTERVAL = "not-a-number";
       const config = getConfig();
-      expect(config.exportIntervalMs).toBe(NaN);
+      expect(config.exportIntervalMs).toBe(60000);
     });
 
-    it("handles zero interval", () => {
+    it("uses default for a zero interval", () => {
       process.env.OTEL_METRIC_EXPORT_INTERVAL = "0";
       const config = getConfig();
-      expect(config.exportIntervalMs).toBe(0);
+      expect(config.exportIntervalMs).toBe(60000);
     });
 
-    it("handles negative interval", () => {
+    it("uses default for a negative interval", () => {
       process.env.OTEL_METRIC_EXPORT_INTERVAL = "-1000";
       const config = getConfig();
-      expect(config.exportIntervalMs).toBe(-1000);
+      expect(config.exportIntervalMs).toBe(60000);
     });
   });
 
