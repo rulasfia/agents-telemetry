@@ -40,6 +40,7 @@
     "@types/node": "^22.0.0",
     "@vitest/runner": "^4.0.18",
     "playwright": "^1.58.2",
+    "tsx": "^4.23.5",
     "typescript": "^5.7.0",
     "vitest": "^4.0.18"
   },
@@ -47,6 +48,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "build:claude": "tsc -p claude/tsconfig.json"
+    "build:claude": "tsc -p claude/tsconfig.json",
+    "dev:up": "mkdir -p stack/dev-out && DEV_UID=$(id -u) DEV_GID=$(id -g) docker compose -f stack/docker-compose.dev.yml up -d",
+    "dev:down": "docker compose -f stack/docker-compose.dev.yml --profile dashboard down",
+    "dev:logs": "docker compose -f stack/docker-compose.dev.yml logs -f otel-collector",
+    "dev:metrics": "node scripts/dev-metrics.mjs",
+    "dev:replay": "npm run build:claude && node scripts/dev-replay.mjs",
+    "dev:pi": "PI_OTLP_ENABLE=1 OTEL_METRICS_EXPORTER=otlp OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4418} tsx scripts/dev-pi-session.ts",
+    "dev:reset": "rm -f stack/dev-out/*.jsonl && docker compose -f stack/docker-compose.dev.yml restart otel-collector"
   }
 }
