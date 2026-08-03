@@ -6,8 +6,8 @@ Compact guide for working in this repo.
 
 A dual-source OpenTelemetry metrics package:
 
-- `pi/src/` — pi-coding-agent extension (long-lived TypeScript module).
-- `claude/src/` — Claude Code plugin bridge (short-lived Node process invoked per hook event).
+- `pi/src/` — pi-coding-agent extension (long-lived TypeScript module). Architecture: [`pi/README.md`](pi/README.md).
+- `claude/src/` — Claude Code plugin bridge (short-lived Node process invoked per hook event). Architecture: [`claude/README.md`](claude/README.md).
 - `stack/` — Docker Compose demo stack: OTel Collector → Prometheus → Grafana.
 - `docs/plans/` — active known issues from the 2026-08-03 review; read before fixing dashboard/metrics behavior.
 

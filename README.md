@@ -16,6 +16,8 @@ pi install /absolute/path/to/agents-telemetry
 
 The local package is loaded directly from disk, so source changes take effect after `/reload`.
 
+See [`pi/README.md`](./pi/README.md) for how the extension works internally.
+
 ### Claude Code
 
 Build the plugin first:
@@ -40,6 +42,8 @@ alias claude='claude --plugin-dir "/absolute/path/to/agents-telemetry/claude"'
 > **Note:** `claude plugin install` is only for marketplace plugins, and `~/.claude/skills/` is for `SKILL.md` skills — neither loads a local plugin's hooks. Use `--plugin-dir`.
 
 > The plugin emits the **same `pi.*` metric names** as the pi extension, so your existing Grafana dashboards work unchanged. It does require one collector-side change — see [Delta temporality](#delta-temporality).
+
+See [`claude/README.md`](./claude/README.md) for how the hook bridge works internally.
 
 ## Configuration
 
