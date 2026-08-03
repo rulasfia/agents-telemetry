@@ -171,9 +171,9 @@ Consequences worth remembering:
 
 `main()` in `src/bridge.ts`:
 
-1. `getConfig()`; return silently unless `PI_OTLP_ENABLE=1`.
+1. `getConfig("claude-code")`; return silently unless `ATEL_CLAUDE_CODE=1`.
 2. Read all of stdin, `JSON.parse` it. A parse failure returns quietly (logged
-   only under `PI_OTLP_DEBUG=1`).
+   only under `ATEL_DEBUG=1`).
 3. Pull `hook_event_name` and `session_id`; load this session's state file.
 4. `switch` on the event name, pushing closures onto an `emits` array rather
    than emitting immediately.
@@ -202,12 +202,17 @@ nothing. Delta lets each process report only its own contribution.
 sums natively. Without it, the plugin's data is unusable. The pi extension is
 unaffected — it exports cumulative from one long-lived process.
 
-### Debug exporter
+### Exporter selection
 
-`config.exporters` / `OTEL_METRICS_EXPORTER` is **deliberately ignored** here.
-Claude Code strips `OTEL_*` from hook subprocesses, so honouring it would mean
-falling back to the `console` default and silently never exporting OTLP. The
-bridge always exports OTLP, and adds a console exporter when `PI_OTLP_DEBUG=1`.
+`ATEL_EXPORTERS` is honoured here exactly as in the pi extension, and
+`ATEL_DEBUG=1` adds a console exporter on top — a process this short-lived
+leaves no other trace to debug from.
+
+This used to be a special case: the bridge ignored `config.exporters` outright
+and always exported OTLP, because Claude Code strips `OTEL_*` from hook
+subprocesses and honouring the old `OTEL_METRICS_EXPORTER` would have fallen
+through to its `console` default and silently exported nothing. `ATEL_*` is not
+stripped, so the special case is gone and both emitters read one variable.
 
 ## Hook → metric mapping
 
@@ -316,7 +321,7 @@ progressively:
 | Token source | `usage` on the assistant message | parsed from the transcript JSONL |
 | `pi.cost.usage` | emitted | **not available** |
 | State | in-memory closure | `~/.pi/otlp-claude/*.json` |
-| Honours `OTEL_METRICS_EXPORTER` | yes | no (always OTLP) |
+| Honours `ATEL_EXPORTERS` | yes | yes |
 | Build | none, loaded from source | esbuild bundle, committed to git |
 | Install | `pi install git:github.com/rulasfia/agents-telemetry` | `/plugin install pi-otlp@agents-telemetry` |
 
@@ -342,7 +347,7 @@ Run one event by hand, no Claude Code involved:
 
 ```bash
 npm run build:claude
-PI_OTLP_ENABLE=1 PI_OTLP_DEBUG=1 PI_OTLP_ENDPOINT=http://localhost:4418 \
+ATEL_CLAUDE_CODE=1 ATEL_DEBUG=1 ATEL_ENDPOINT=http://localhost:4418 \
   node claude/dist/bridge.cjs <<'EOF'
 {"hook_event_name":"SessionStart","session_id":"test","model":{"provider":"anthropic","id":"claude-sonnet-5"}}
 EOF

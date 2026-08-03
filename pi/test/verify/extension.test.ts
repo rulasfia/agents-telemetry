@@ -90,8 +90,8 @@ describe("Extension", () => {
     process.env = originalEnv;
   });
 
-  it("does nothing when PI_OTLP_ENABLE is not set", async () => {
-    delete process.env.PI_OTLP_ENABLE;
+  it("does nothing when ATEL_PI is not set", async () => {
+    delete process.env.ATEL_PI;
     const { default: extension } = await import("../../src/index.js");
     const api = createMockExtensionAPI();
 
@@ -102,8 +102,8 @@ describe("Extension", () => {
   });
 
   it("registers event handlers when enabled", async () => {
-    process.env.PI_OTLP_ENABLE = "1";
-    process.env.OTEL_METRICS_EXPORTER = "console";
+    process.env.ATEL_PI = "1";
+    process.env.ATEL_EXPORTERS = "console";
 
     const { default: extension } = await import("../../src/index.js");
     const api = createMockExtensionAPI();
@@ -121,8 +121,8 @@ describe("Extension", () => {
   });
 
   it("registers the otlp-status command", async () => {
-    process.env.PI_OTLP_ENABLE = "1";
-    process.env.OTEL_METRICS_EXPORTER = "console";
+    process.env.ATEL_PI = "1";
+    process.env.ATEL_EXPORTERS = "console";
 
     const { default: extension } = await import("../../src/index.js");
     const api = createMockExtensionAPI();

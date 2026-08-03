@@ -18,7 +18,7 @@ Both emitters share `pi/src/config.ts` and emit the same `pi.*` metric names, bu
 ```bash
 npm ci
 npm run typecheck       # both projects: typecheck:pi then typecheck:claude
-npm test                # all 71 tests via vitest defaults
+npm test                # all 77 tests via vitest defaults
 npm run test:watch      # vitest watch mode
 npm run build:claude    # bundle the Claude plugin to claude/dist/bridge.cjs
 ```
@@ -101,10 +101,11 @@ claude --plugin-dir "$(pwd)/claude"
 
 ## Configuration gotchas
 
-- `PI_OTLP_ENABLE=1` is required to enable either emitter.
-- Standard `OTEL_*` env vars are supported, with `PI_OTLP_*` fallbacks so Claude Code (which strips `OTEL_*` from hook subprocesses) can share config.
-- **Important exporter gap:** `OTEL_METRICS_EXPORTER` defaults to `console` in `pi/src/config.ts`. A `PI_OTLP_*`-only env will export OTLP from the Claude bridge but **not** from the pi extension. Set `OTEL_METRICS_EXPORTER=otlp` explicitly when you want pi OTLP export.
-- Base endpoint (`OTEL_EXPORTER_OTLP_ENDPOINT` / `PI_OTLP_ENDPOINT`) has `/v1/metrics` appended. The signal-specific endpoint vars (`..._METRICS_ENDPOINT`) are used verbatim and take precedence.
+- Everything lives in one `ATEL_*` namespace shared by both emitters. Only enablement is per-emitter: `ATEL_PI=1` and `ATEL_CLAUDE_CODE=1`. Neither implies the other.
+- `getConfig(source)` takes `"pi" | "claude-code"` — that argument selects *only* which enable variable is read; every other setting is identical for both.
+- **`OTEL_*` and `PI_OTLP_*` are deliberately not read.** Don't "restore standard OTel support" without reading this: Claude Code strips `OTEL_*` from hook subprocesses, so anything honouring it configures pi and silently skips the bridge. That asymmetry is exactly what `PI_OTLP_*` existed to paper over, and what the single `ATEL_*` namespace replaced. Two tests in `pi/src/config.test.ts` assert the old names are ignored.
+- `ATEL_ENDPOINT` is a base URL with `/v1/metrics` appended; `ATEL_METRICS_ENDPOINT` is used verbatim and wins.
+- `ATEL_EXPORTERS` defaults to **`otlp`** (it used to default to `console`, which made the two emitters behave differently under one config). Both emitters honour it now; the bridge could not honour the old `OTEL_METRICS_EXPORTER` because Claude Code stripped it.
 
 ## Claude bridge behavior
 
@@ -112,7 +113,7 @@ claude --plugin-dir "$(pwd)/claude"
 - Because each process is short-lived, the bridge exports **delta** temporality. The collector must run the `deltatocumulative` processor to turn deltas into cumulative counters for Prometheus.
 - The bridge persists per-session state in `~/.pi/otlp-claude/` so it can resume across hooks.
 - The bridge does **not** emit `pi.cost.usage` — Claude Code hook events do not expose cost data.
-- Debug mode (`PI_OTLP_DEBUG=1`) also enables a console exporter in addition to OTLP.
+- Debug mode (`ATEL_DEBUG=1`) also enables a console exporter in addition to whatever `ATEL_EXPORTERS` selects.
 
 ## Local backend stack
 
@@ -133,14 +134,14 @@ Notes:
 ## Testing notes
 
 - No `vitest.config.ts` exists; vitest uses defaults and discovers `*.test.ts` files.
-- Config tests strip `PI_OTLP_*` and `OTEL_*` env vars in `beforeEach` to avoid leaking your local environment into assertions.
+- Config tests strip `ATEL_*` (and the legacy prefixes) in `beforeEach` to avoid leaking your local environment into assertions.
 - Transcript tests write temp files under `os.tmpdir()` and clean them up.
 
 ## Debugging the bridge in isolation
 
 ```bash
 npm run build:claude
-PI_OTLP_ENABLE=1 PI_OTLP_DEBUG=1 PI_OTLP_ENDPOINT=http://localhost:4318 \
+ATEL_CLAUDE_CODE=1 ATEL_DEBUG=1 ATEL_ENDPOINT=http://localhost:4318 \
   node claude/dist/bridge.cjs <<'EOF'
 {"hook_event_name":"SessionStart","session_id":"test","model":{"provider":"anthropic","id":"claude-sonnet-5"}}
 EOF

@@ -38,7 +38,7 @@ reports `pi-otlp-claude`, and both collector configs enable
 - Filter panels on it like the other variables.
 - Add one or two `sum by (service_name)` breakdown panels (e.g. "Tokens by Source",
   "Turns by Source") to the Overview or Provider row.
-- Optionally do the same for `device_name` (emitted when `PI_OTLP_DEVICE_NAME` is
+- Optionally do the same for `device_name` (emitted when `ATEL_DEVICE_NAME` is
   set) for multi-device setups.
 
 ## Problem 3: instant-vector panels undercount

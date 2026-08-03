@@ -62,7 +62,7 @@ async function main() {
   extension(pi as any);
 
   if (handlers.size === 0) {
-    console.error("Extension registered no handlers — is PI_OTLP_ENABLE=1 set?");
+    console.error("Extension registered no handlers — is ATEL_PI=1 set?");
     process.exit(1);
   }
 

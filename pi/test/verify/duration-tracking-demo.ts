@@ -1,7 +1,7 @@
 /**
  * Duration tracking demo: verifies session/turn/tool duration histograms work end-to-end
  *
- * Run with: PI_OTLP_ENABLE=1 npx tsx test/verify/duration-tracking-demo.ts
+ * Run with: ATEL_PI=1 npx tsx test/verify/duration-tracking-demo.ts
  */
 
 import extension from "../../src/index.js";
@@ -73,7 +73,7 @@ async function verifyDurationTracking() {
   extension(mockPi as unknown as Parameters<typeof extension>[0]);
 
   if (handlers.size === 0) {
-    console.log("ERROR: Extension disabled - set PI_OTLP_ENABLE=1");
+    console.log("ERROR: Extension disabled - set ATEL_PI=1");
     process.exit(1);
   }
 

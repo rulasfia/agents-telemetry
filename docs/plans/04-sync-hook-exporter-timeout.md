@@ -34,7 +34,7 @@ Notes:
 
 - 2–3s is enough for a LAN/tailnet collector; losing a datapoint beats a stalled
   prompt. Do not add retries.
-- Consider making it configurable (`PI_OTLP_TIMEOUT`, default 3000) only if someone
+- Consider making it configurable (`ATEL_TIMEOUT`, default 3000) only if someone
   actually reports a slow-but-reachable backend; start hardcoded.
 - The pi extension exports on a background interval, so the default timeout is fine
   there — no change needed in `src/index.ts`.
@@ -45,7 +45,7 @@ Notes:
 
 - With the collector endpoint pointed at a blackholed address, starting a Claude
   Code session and completing a turn feels instant (subjective: no visible pause;
-  measurable: hook wall time ≤ ~3.5s, ideally verified with `PI_OTLP_DEBUG=1`
+  measurable: hook wall time ≤ ~3.5s, ideally verified with `ATEL_DEBUG=1`
   timestamps).
 - With the collector reachable, metrics still arrive (run `demo/` stack and confirm
   on the dashboard).

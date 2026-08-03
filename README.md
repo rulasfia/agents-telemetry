@@ -55,69 +55,64 @@ See [`claude/README.md`](./claude/README.md) for how the hook bridge works inter
 Neither emitter does anything until you enable it. At minimum:
 
 ```bash
-export PI_OTLP_ENABLE=1
-export OTEL_METRICS_EXPORTER=otlp
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+export ATEL_PI=1              # turn on the pi extension
+export ATEL_CLAUDE_CODE=1     # turn on the Claude Code plugin
+export ATEL_ENDPOINT=http://localhost:4318
 ```
 
 See [Configuration](#configuration) for the full set.
 
 ## Configuration
 
-Enable via environment variables:
+Everything is configured through one `ATEL_*` namespace, shared by both agents.
+Only enablement is per-agent, so you can run telemetry for one without the other.
 
 ```bash
-# Required: enable the extension / plugin
-export PI_OTLP_ENABLE=1
+# Enablement — set the one(s) you want. Nothing is emitted otherwise.
+export ATEL_PI=1
+export ATEL_CLAUDE_CODE=1
 
-# Choose exporters (console, otlp, or both)
-export OTEL_METRICS_EXPORTER=console
+# Base endpoint: /v1/metrics is appended.
+export ATEL_ENDPOINT=http://homeserver:4318
 
-# For OTLP export (e.g., to Grafana, Datadog, or any OTLP-compatible backend)
-export OTEL_METRICS_EXPORTER=otlp
+# Or a complete metrics endpoint, used verbatim (takes precedence over the base form).
+export ATEL_METRICS_ENDPOINT=http://homeserver:4318/v1/metrics
 
-# Base endpoint: the extension appends /v1/metrics.
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://homeserver:4318
+# Optional: exporters — otlp, console, or both. Default: otlp.
+export ATEL_EXPORTERS=otlp,console
 
-# Or use a complete metrics endpoint verbatim (takes precedence over the base endpoint).
-export OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://homeserver:4318/v1/metrics
+# Optional: export interval in ms. Default: 60000.
+export ATEL_EXPORT_INTERVAL=10000
 
-# Optional: export interval (default: 60000ms)
-export OTEL_METRIC_EXPORT_INTERVAL=10000
+# Optional: headers for authentication. Metrics-specific headers override the general ones.
+export ATEL_HEADERS="Authorization=Bearer token"
+export ATEL_METRICS_HEADERS="Authorization=Bearer metrics-token"
 
 # Optional: stable, friendly device label for multi-device dashboards.
-export PI_OTLP_DEVICE_NAME=desktop
+export ATEL_DEVICE_NAME=desktop
 
-# Optional: OTLP headers for authentication. Signal-specific headers override these.
-export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer token"
-export OTEL_EXPORTER_OTLP_METRICS_HEADERS="Authorization=Bearer metrics-token"
-
-# Optional: debug logging
-export PI_OTLP_DEBUG=1
+# Optional: debug logging.
+export ATEL_DEBUG=1
 ```
 
-### Claude Code compatibility
+| Variable | Default | Notes |
+|---|---|---|
+| `ATEL_PI` | off | `1` enables the pi extension |
+| `ATEL_CLAUDE_CODE` | off | `1` enables the Claude Code plugin |
+| `ATEL_ENDPOINT` | `http://localhost:4318` | base URL; `/v1/metrics` is appended |
+| `ATEL_METRICS_ENDPOINT` | — | used verbatim; wins over `ATEL_ENDPOINT` |
+| `ATEL_EXPORTERS` | `otlp` | comma-separated: `otlp`, `console` |
+| `ATEL_EXPORT_INTERVAL` | `60000` | milliseconds |
+| `ATEL_HEADERS` | — | `Key=value,Key2=value2` |
+| `ATEL_METRICS_HEADERS` | — | merged over `ATEL_HEADERS` |
+| `ATEL_DEVICE_NAME` | — | adds a `device.name` resource attribute |
+| `ATEL_DEBUG` | off | verbose diagnostics; also adds the console exporter |
 
-Claude Code strips `OTEL_*` environment variables from hook subprocesses. To keep one shared config, the plugin also reads `PI_OTLP_*` fallbacks:
-
-```bash
-export PI_OTLP_ENABLE=1
-
-# Base endpoint — /v1/metrics is appended, mirroring OTEL_EXPORTER_OTLP_ENDPOINT.
-export PI_OTLP_ENDPOINT=http://homeserver:4318
-
-# Or a complete metrics endpoint used verbatim, mirroring
-# OTEL_EXPORTER_OTLP_METRICS_ENDPOINT (takes precedence over the base form).
-export PI_OTLP_METRICS_ENDPOINT=http://homeserver:4318/v1/metrics
-
-export PI_OTLP_HEADERS="Authorization=Bearer token"
-export PI_OTLP_METRICS_HEADERS="Authorization=Bearer metrics-token"
-export PI_OTLP_EXPORT_INTERVAL=10000
-```
-
-These work for both pi and Claude Code without duplication. Each `PI_OTLP_*`
-variable is the fallback for exactly one `OTEL_*` variable; the `OTEL_*` form
-wins when both are set.
+> **`OTEL_*` and `PI_OTLP_*` are not read.** Claude Code strips `OTEL_*` from hook
+> subprocesses, so honouring it would configure one agent and silently skip the
+> other — the reason the old `PI_OTLP_*` fallbacks existed. `ATEL_*` survives that,
+> so one name per setting is enough. If you already export a machine-wide
+> `OTEL_EXPORTER_OTLP_ENDPOINT`, set `ATEL_ENDPOINT` alongside it.
 
 ### Delta temporality
 

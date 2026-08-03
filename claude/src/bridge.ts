@@ -131,7 +131,11 @@ function createMeterProvider(config: OtlpConfig) {
 
   const readers = [];
 
-  if (config.debug) {
+  // ATEL_EXPORTERS is honoured here exactly as in the pi extension. The older
+  // OTEL_METRICS_EXPORTER could not be, because Claude Code strips OTEL_* from
+  // hook subprocesses; ATEL_* survives, so both emitters now read one variable.
+  // Debug adds console on top, since a short-lived process leaves no other trace.
+  if (config.exporters.includes("console") || config.debug) {
     readers.push(
       new PeriodicExportingMetricReader({
         exporter: new ConsoleMetricExporter(),
@@ -140,20 +144,24 @@ function createMeterProvider(config: OtlpConfig) {
     );
   }
 
-  readers.push(
-    new PeriodicExportingMetricReader({
-      exporter: new OTLPMetricExporter({
-        url: config.otlpEndpoint,
-        headers: config.otlpHeaders,
-        // Every hook event runs in a fresh process, so a cumulative counter
-        // would restart at zero and report 1 forever — Prometheus would see a
-        // flat series and increase()/rate() would return nothing. Delta lets
-        // the collector stitch the per-process contributions together.
-        temporalityPreference: AggregationTemporalityPreference.DELTA,
+  if (config.exporters.includes("otlp")) {
+    readers.push(
+      new PeriodicExportingMetricReader({
+        exporter: new OTLPMetricExporter({
+          url: config.otlpEndpoint,
+          headers: config.otlpHeaders,
+          // Every hook event runs in a fresh process, so a cumulative counter
+          // would restart at zero and report 1 forever — Prometheus would see a
+          // flat series and increase()/rate() would return nothing. Delta lets
+          // the collector stitch the per-process contributions together.
+          temporalityPreference: AggregationTemporalityPreference.DELTA,
+        }),
+        exportIntervalMillis: config.exportIntervalMs,
       }),
-      exportIntervalMillis: config.exportIntervalMs,
-    }),
-  );
+    );
+  }
+
+  if (readers.length === 0) return null;
 
   return new MeterProvider({ resource, readers });
 }
@@ -167,11 +175,7 @@ function baseAttrs(sessionId: string, state: State) {
 }
 
 async function main() {
-  const config = getConfig();
-  // `config.exporters` (OTEL_METRICS_EXPORTER) is deliberately ignored here:
-  // Claude Code strips OTEL_* from hook subprocesses, so honouring it would
-  // silently disable OTLP export. The bridge always exports OTLP, plus console
-  // when PI_OTLP_DEBUG=1.
+  const config = getConfig("claude-code");
   if (!config.enabled) return;
 
   const rawEvent = await readStdin();
@@ -380,6 +384,7 @@ async function main() {
   if (emits.length === 0) return;
 
   const meterProvider = createMeterProvider(config);
+  if (!meterProvider) return;
   try {
     const meter = meterProvider.getMeter("com.pi.otlp.claude");
     for (const emit of emits) emit(meter);
@@ -400,7 +405,7 @@ async function main() {
 main().catch((err) => {
   // Exit 0 regardless: a non-zero hook exit surfaces as a visible failure in
   // Claude Code, and telemetry should never interrupt the session.
-  if (process.env.PI_OTLP_DEBUG === "1") {
+  if (process.env.ATEL_DEBUG === "1") {
     console.error("[OTLP] Bridge error:", err);
   }
 });

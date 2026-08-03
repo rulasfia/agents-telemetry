@@ -9,7 +9,7 @@ issues found, ranked by severity.
 |---|------|----------|------|
 | 1 | [Dashboard fixes](./01-dashboard-fixes.md) | High | `grafana/` |
 | 2 | [Resume/compact token double-count](./02-resume-token-double-count.md) | High | `claude/` |
-| 3 | [Shared-config exporter gap for pi](./03-shared-config-exporter-gap.md) | Medium | `src/config.ts` |
+| 3 | [Shared-config exporter gap for pi](./03-shared-config-exporter-gap.md) | ~~Medium~~ **resolved** | `pi/src/config.ts` |
 | 4 | [Sync hook stall on unreachable collector](./04-sync-hook-exporter-timeout.md) | Medium | `claude/` |
 | 5 | [Minor improvements](./05-minor-improvements.md) | Low | various |
 
@@ -24,4 +24,4 @@ issues found, ranked by severity.
 - Distinct `service.name` values (`pi-coding-agent` vs `pi-otlp-claude`) plus
   `resource_to_telemetry_conversion` mean the two sources never collide and remain
   distinguishable via the `service_name` label.
-- 71/71 tests pass; `npm run build:claude` compiles clean.
+- 71/71 tests passed at review time; `npm run build:claude` compiled clean.

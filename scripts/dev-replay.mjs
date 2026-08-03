@@ -3,7 +3,7 @@
  * Replay a realistic Claude Code hook sequence through the compiled bridge.
  *
  *   npm run dev:replay
- *   PI_OTLP_ENDPOINT=http://localhost:4418 npm run dev:replay
+ *   ATEL_ENDPOINT=http://localhost:4418 npm run dev:replay
  *
  * Claude Code spawns one bridge process per hook event, so this does the same
  * rather than calling the handler in-process — process-boundary bugs (state
@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const bridge = join(repoRoot, "claude", "dist", "bridge.cjs");
 
-const endpoint = process.env.PI_OTLP_ENDPOINT ?? "http://localhost:4418";
+const endpoint = process.env.ATEL_ENDPOINT ?? "http://localhost:4418";
 const sessionId = process.env.DEV_SESSION_ID ?? `dev-${Date.now()}`;
 const keepState = process.env.DEV_KEEP_STATE === "1";
 
@@ -55,9 +55,9 @@ function send(event) {
       env: {
         ...process.env,
         HOME: scratch,
-        PI_OTLP_ENABLE: "1",
-        PI_OTLP_ENDPOINT: endpoint,
-        PI_OTLP_DEBUG: process.env.PI_OTLP_DEBUG ?? "0",
+        ATEL_CLAUDE_CODE: "1",
+        ATEL_ENDPOINT: endpoint,
+        ATEL_DEBUG: process.env.ATEL_DEBUG ?? "0",
       },
       stdio: ["pipe", "inherit", "inherit"],
     });

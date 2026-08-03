@@ -3,7 +3,7 @@
  *
  * Run with: npx tsx test/verify/integration-demo.ts
  *
- * Set PI_OTLP_ENABLE=1 and PI_OTLP_DEBUG=1 to see output.
+ * Set ATEL_PI=1 and ATEL_DEBUG=1 to see output.
  */
 
 import extension from "../../src/index.js";
@@ -57,7 +57,7 @@ async function simulateSession() {
   extension(mockPi as unknown as Parameters<typeof extension>[0]);
 
   if (handlers.size === 0) {
-    console.log("[demo] Extension disabled - set PI_OTLP_ENABLE=1");
+    console.log("[demo] Extension disabled - set ATEL_PI=1");
     return;
   }
 

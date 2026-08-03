@@ -1,3 +1,24 @@
+/**
+ * Shared configuration for both emitters.
+ *
+ * Every setting is read from a single `ATEL_*` namespace so one exported
+ * environment configures pi and Claude Code identically. Only enablement is
+ * per-emitter, so you can run telemetry for one agent without the other.
+ *
+ * `OTEL_*` and the older `PI_OTLP_*` names are deliberately not consulted.
+ * `PI_OTLP_*` only ever existed because Claude Code strips `OTEL_*` from hook
+ * subprocesses; `ATEL_*` survives that, so one name per setting is enough.
+ */
+
+/** Which emitter is asking — selects the enable variable. */
+export type TelemetrySource = "pi" | "claude-code";
+
+/** The enable flag is per-emitter; everything else is shared. */
+const ENABLE_VAR: Record<TelemetrySource, string> = {
+  pi: "ATEL_PI",
+  "claude-code": "ATEL_CLAUDE_CODE",
+};
+
 export interface OtlpConfig {
   enabled: boolean;
   debug: boolean;
@@ -8,24 +29,22 @@ export interface OtlpConfig {
   deviceName?: string;
 }
 
-export function getConfig(): OtlpConfig {
-  const enabled = process.env.PI_OTLP_ENABLE === "1";
-  const debug = process.env.PI_OTLP_DEBUG === "1";
+export function getConfig(source: TelemetrySource): OtlpConfig {
+  const enabled = process.env[ENABLE_VAR[source]] === "1";
+  const debug = process.env.ATEL_DEBUG === "1";
 
-  const exporterStr = process.env.OTEL_METRICS_EXPORTER ?? "console";
-  const exporters = exporterStr.split(",").map((e) => e.trim()) as ("console" | "otlp")[];
+  // Defaults to otlp: exporting to a collector is the point, and a console
+  // default would make the two emitters diverge under identical config.
+  const exporterStr = process.env.ATEL_EXPORTERS ?? "otlp";
+  const exporters = exporterStr
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean) as ("console" | "otlp")[];
 
-  // Claude Code strips OTEL_* env vars from hook subprocesses, so PI_* fallbacks
-  // allow the same endpoint config to work across both pi and Claude Code.
-  // PI_OTLP_ENDPOINT mirrors OTEL_EXPORTER_OTLP_ENDPOINT (a base URL that gets
-  // /v1/metrics appended); PI_OTLP_METRICS_ENDPOINT mirrors the signal-specific
-  // variant and is used verbatim. Wiring PI_OTLP_ENDPOINT into both slots would
-  // make the base form win the verbatim branch and skip /v1/metrics entirely.
-  const metricsEndpoint =
-    process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT ||
-    process.env.PI_OTLP_METRICS_ENDPOINT;
-  const endpoint =
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT || process.env.PI_OTLP_ENDPOINT;
+  // ATEL_ENDPOINT is a base URL that gets /v1/metrics appended;
+  // ATEL_METRICS_ENDPOINT is the signal-specific form, used verbatim, and wins.
+  const metricsEndpoint = process.env.ATEL_METRICS_ENDPOINT;
+  const endpoint = process.env.ATEL_ENDPOINT;
   const otlpEndpoint = metricsEndpoint
     ? metricsEndpoint
     : endpoint
@@ -33,29 +52,19 @@ export function getConfig(): OtlpConfig {
       : "http://localhost:4318/v1/metrics";
 
   const otlpHeaders = {
-    ...parseHeaders(
-      process.env.OTEL_EXPORTER_OTLP_HEADERS ||
-        process.env.PI_OTLP_HEADERS ||
-        ""
-    ),
-    ...parseHeaders(
-      process.env.OTEL_EXPORTER_OTLP_METRICS_HEADERS ||
-        process.env.PI_OTLP_METRICS_HEADERS ||
-        ""
-    ),
+    ...parseHeaders(process.env.ATEL_HEADERS || ""),
+    ...parseHeaders(process.env.ATEL_METRICS_HEADERS || ""),
   };
 
   const parsedInterval = parseInt(
-    process.env.OTEL_METRIC_EXPORT_INTERVAL ||
-      process.env.PI_OTLP_EXPORT_INTERVAL ||
-      "60000",
+    process.env.ATEL_EXPORT_INTERVAL || "60000",
     10
   );
   const exportIntervalMs =
     Number.isFinite(parsedInterval) && parsedInterval > 0
       ? parsedInterval
       : 60000;
-  const deviceName = process.env.PI_OTLP_DEVICE_NAME?.trim() || undefined;
+  const deviceName = process.env.ATEL_DEVICE_NAME?.trim() || undefined;
 
   return {
     enabled,

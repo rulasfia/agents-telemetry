@@ -23,7 +23,7 @@ in-memory instruments; a background reader ships them on a timer.
         v
   +----------------------------------------------------------------+
   |  pi/src/index.ts -- event handlers                             |
-  |  gate on PI_OTLP_ENABLE, build the pipeline, subscribe         |
+  |  gate on ATEL_PI, build the pipeline, subscribe                |
   +------------------------------+---------------------------------+
                                  |  collector.record*()
                                  v
@@ -107,13 +107,13 @@ source and run pi's `/reload`.
 `src/index.ts` exports a default function that pi calls once with the
 `ExtensionAPI`:
 
-1. `getConfig()`. If `PI_OTLP_ENABLE !== "1"`, return immediately — nothing is
+1. `getConfig("pi")`. If `ATEL_PI !== "1"`, return immediately — nothing is
    registered, not even the `/otlp-status` command.
-2. If `PI_OTLP_DEBUG=1`, install a `FileDiagLogger` writing to
+2. If `ATEL_DEBUG=1`, install a `FileDiagLogger` writing to
    `~/.pi/otlp-debug.log`. OTel's default diag logger writes to the console,
    which would paint over pi's TUI — hence the file.
 3. Build the `Resource`: `service.name=pi-coding-agent`, `service.version`,
-   `os.type`, `host.arch`, and `device.name` when `PI_OTLP_DEVICE_NAME` is set.
+   `os.type`, `host.arch`, and `device.name` when `ATEL_DEVICE_NAME` is set.
 4. Build one `PeriodicExportingMetricReader` per entry in
    `config.exporters` (`console` and/or `otlp`). **If neither matches, return** —
    a `MeterProvider` with zero readers would silently drop everything.
@@ -185,23 +185,24 @@ per process; loading the extension twice would clobber the first.
 
 `session_shutdown` calls `meterProvider.shutdown()`, which forces a final export.
 Without it, anything accumulated since the last periodic export — up to
-`OTEL_METRIC_EXPORT_INTERVAL`, **default 60s** — is lost when pi exits. Short
+`ATEL_EXPORT_INTERVAL`, **default 60s** — is lost when pi exits. Short
 sessions therefore depend on this handler firing. Lower the interval (e.g.
-`OTEL_METRIC_EXPORT_INTERVAL=10000`) when developing so you don't wait a minute
+`ATEL_EXPORT_INTERVAL=10000`) when developing so you don't wait a minute
 to see data.
 
 ## Gotchas
 
-- **`OTEL_METRICS_EXPORTER` defaults to `console`.** A `PI_OTLP_*`-only
-  environment gets you OTLP from the Claude bridge but *console* from pi — no
-  OTLP export, and console output written underneath the TUI. Set
-  `OTEL_METRICS_EXPORTER=otlp` explicitly. This is
-  [plan 03](../docs/plans/03-shared-config-exporter-gap.md).
+- **`ATEL_EXPORTERS` defaults to `otlp`.** It used to default to `console`,
+  which meant one environment got you OTLP from the Claude bridge but *console*
+  from pi — no OTLP export, and console output painted underneath the TUI. That
+  gap ([plan 03](../docs/plans/03-shared-config-exporter-gap.md)) is closed. Set
+  `ATEL_EXPORTERS=console` if you actually want console output, and expect it to
+  land on top of the TUI.
 - **`src/config.ts` is shared.** Any change to it affects the Claude bridge and
   requires `npm run build:claude` before that side sees it.
-- Config tests strip `PI_OTLP_*` and `OTEL_*` in `beforeEach`; if you add a new
-  env var, add it to that strip list or your local shell will leak into
-  assertions.
+- Config tests strip `ATEL_*` in `beforeEach`; if you add a new env var, keep it
+  in that namespace or add it to the strip list, or your local shell will leak
+  into assertions.
 
 ## Verifying changes
 
