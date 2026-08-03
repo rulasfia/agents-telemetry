@@ -1,7 +1,9 @@
 services:
   # OpenTelemetry Collector - receives OTLP metrics and exports to Prometheus
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.96.0
+    # 0.157.0 matches deploy/compose.yaml and is new enough for the
+    # deltatocumulative processor the Claude Code plugin depends on.
+    image: otel/opentelemetry-collector-contrib:0.157.0
     container_name: pi-otlp-collector
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:

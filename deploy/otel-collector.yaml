@@ -9,6 +9,12 @@ processors:
     check_interval: 1s
     limit_mib: 256
     spike_limit_mib: 64
+  # The Claude Code plugin runs one short-lived process per hook event, so it
+  # exports delta metrics — a cumulative counter would restart at zero every
+  # time and Prometheus would see a permanently flat series. This stitches the
+  # per-process deltas back into the cumulative counters Prometheus expects.
+  # The pi extension exports cumulative and passes through unchanged.
+  deltatocumulative:
   batch:
     timeout: 5s
     send_batch_size: 1000
@@ -23,5 +29,5 @@ service:
   pipelines:
     metrics:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
+      processors: [memory_limiter, deltatocumulative, batch]
       exporters: [prometheus]
