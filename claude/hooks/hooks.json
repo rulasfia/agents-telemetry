@@ -7,7 +7,7 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude-plugin/src/bridge.js"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude/src/bridge.js"],
             "timeout": 10,
             "statusMessage": "OTLP session start"
           }
@@ -20,7 +20,7 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude-plugin/src/bridge.js"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude/src/bridge.js"],
             "timeout": 10,
             "async": true,
             "statusMessage": "OTLP prompt submit"
@@ -34,7 +34,7 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude-plugin/src/bridge.js"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude/src/bridge.js"],
             "timeout": 10,
             "async": true,
             "statusMessage": "OTLP tool end"
@@ -48,7 +48,7 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude-plugin/src/bridge.js"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude/src/bridge.js"],
             "timeout": 10,
             "async": true,
             "statusMessage": "OTLP tool failure"
@@ -62,7 +62,7 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude-plugin/src/bridge.js"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude/src/bridge.js"],
             "timeout": 10,
             "statusMessage": "OTLP turn end"
           }
@@ -75,7 +75,7 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude-plugin/src/bridge.js"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/claude/src/bridge.js"],
             "timeout": 15,
             "statusMessage": "OTLP session flush"
           }

@@ -1,7 +1,7 @@
 # Resume/compact token double-count
 
 **Severity:** High — silently inflates `pi.token.usage`, the headline metric.
-**Files:** `claude-plugin/src/bridge.ts` (SessionStart handler, ~line 203)
+**Files:** `claude/src/bridge.ts` (SessionStart handler, ~line 203)
 
 ## Problem
 

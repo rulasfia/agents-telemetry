@@ -8,8 +8,8 @@
     "skipLibCheck": true,
     "declaration": true,
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "pi/src"
   },
-  "include": ["src/**/*"],
+  "include": ["pi/src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

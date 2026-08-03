@@ -1,17 +1,12 @@
 # Development files
 .git/
 .ralph/
-test/
+pi/test/
 *.test.ts
 *.spec.ts
 vitest.config.ts
 
-# Documentation (project-specific)
-PRODUCT.md
-MARKET.md
-INSIGHTS.md
-PROMPT.md
-ralph.yml
+
 
 # IDE
 .vscode/

@@ -5,7 +5,7 @@ robustness or hygiene win.
 
 ## 1. `prompt.length` attribute is unbounded cardinality
 
-**Files:** `src/telemetry.ts` (`recordUserPrompt`), `claude-plugin/src/bridge.ts`
+**Files:** `pi/src/telemetry.ts` (`recordUserPrompt`), `claude/src/bridge.ts`
 (UserPromptSubmit), README metrics table.
 
 Both emitters attach the raw character count to `pi.prompt.count`. Every distinct
@@ -32,7 +32,7 @@ make the README point at a concrete config snippet.
 
 ## 3. State-file race between async UserPromptSubmit and sync Stop
 
-**Files:** `claude-plugin/src/bridge.ts`.
+**Files:** `claude/src/bridge.ts`.
 
 `UserPromptSubmit` runs `async: true` and rewrites the whole state file
 (read-modify-write, no lock). On a very fast turn its write can land **after**
@@ -46,7 +46,7 @@ small; low priority, but the fix is a few lines.
 
 ## 4. Verify `duration_ms` exists on PostToolUse hook payloads
 
-**Files:** `claude-plugin/src/bridge.ts` (~line 266).
+**Files:** `claude/src/bridge.ts` (~line 266).
 
 The bridge reads `event.duration_ms` to record `pi.tool.duration`. The
 `isFinite` guard means nothing breaks if the field is absent — but then the

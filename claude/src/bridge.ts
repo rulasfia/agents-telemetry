@@ -25,7 +25,7 @@ import {
 } from "fs";
 import { homedir } from "os";
 import { join } from "path";
-import { getConfig, type OtlpConfig } from "../../src/config.js";
+import { getConfig, type OtlpConfig } from "../pi/src/config.js";
 import { readLastModel, readTranscriptDelta } from "./transcript.js";
 import { VERSION } from "./version.js";
 

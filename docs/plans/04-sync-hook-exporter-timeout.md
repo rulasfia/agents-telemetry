@@ -2,7 +2,7 @@
 
 **Severity:** Medium — UX: every session start and turn end can block for ~10s when
 the collector is unreachable (laptop off the home network).
-**Files:** `claude-plugin/src/bridge.ts` (`createMeterProvider`), `hooks.json`
+**Files:** `claude/src/bridge.ts` (`createMeterProvider`), `hooks.json`
 
 ## Problem
 

@@ -7,11 +7,11 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    // The bridge shares src/config.ts with the pi extension, so the build root
-    // is the repo root. Emitted layout: dist/claude-plugin/src/bridge.js and
-    // dist/src/config.js — hooks.json points at the former.
+    // The bridge shares pi/src/config.ts with the pi extension, so the build root
+    // is the repo root. Emitted layout: dist/claude/src/bridge.js and
+    // dist/pi/src/config.js — hooks.json points at the former.
     "rootDir": ".."
   },
-  "include": ["src/**/*", "../src/config.ts"],
+  "include": ["src/**/*", "../pi/src/config.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

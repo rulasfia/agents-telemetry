@@ -28,13 +28,13 @@ npm run build:claude
 Then load it with `--plugin-dir`:
 
 ```bash
-claude --plugin-dir "$(pwd)/claude-plugin"
+claude --plugin-dir "$(pwd)/claude"
 ```
 
 To avoid passing the flag every time, add it to your shell profile as an alias:
 
 ```bash
-alias claude='claude --plugin-dir "/absolute/path/to/agents-telemetry/claude-plugin"'
+alias claude='claude --plugin-dir "/absolute/path/to/agents-telemetry/claude"'
 ```
 
 > **Note:** `claude plugin install` is only for marketplace plugins, and `~/.claude/skills/` is for `SKILL.md` skills — neither loads a local plugin's hooks. Use `--plugin-dir`.
@@ -213,7 +213,7 @@ docker run -d --name otel-collector \
 
 ### Full Stack Demo
 
-See [`demo/`](./demo) for a complete Docker Compose setup with OTLP Collector, Prometheus, and pre-configured Grafana dashboards.
+See [`stack/`](./stack) for a complete Docker Compose setup with OTLP Collector, Prometheus, and pre-configured Grafana dashboards.
 
 ## License
 
