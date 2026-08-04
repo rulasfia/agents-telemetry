@@ -128,8 +128,8 @@ What each step actually does:
 | `src/bridge.ts` | The whole process: stdin → event dispatch → staged metric emits → flush → exit. |
 | `src/transcript.ts` | Incremental JSONL transcript reader. Where token usage comes from. |
 | `src/version.ts` | `service.version`. Kept in sync with `package.json` by a test. |
-| `.claude-plugin/plugin.json` | Plugin manifest; points at `hooks/hooks.json`. |
-| `hooks/hooks.json` | Which hooks run the bridge, sync vs async, and timeouts. |
+| `.claude-plugin/plugin.json` | Plugin manifest: name, version, metadata. It must **not** declare `hooks` — Claude Code loads `hooks/hooks.json` automatically, and naming it again fails the load as a duplicate. |
+| `hooks/hooks.json` | Which hooks run the bridge, sync vs async, and timeouts. Loaded by convention, not by reference. |
 | `tsconfig.json` | Build config with the `rootDir: ".."` quirk described below. |
 
 Config parsing is **not** here — `src/bridge.ts` imports `../../pi/src/config.ts`,

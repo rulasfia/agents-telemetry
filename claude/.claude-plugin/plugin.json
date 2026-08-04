@@ -1,7 +1,7 @@
 {
   "name": "pi-otlp",
   "displayName": "pi OTLP Telemetry",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Emit pi-compatible OTLP metrics from Claude Code sessions",
   "author": {
     "name": "rulasfia",
@@ -10,6 +10,5 @@
   "homepage": "https://github.com/rulasfia/agents-telemetry",
   "repository": "https://github.com/rulasfia/agents-telemetry",
   "license": "MIT",
-  "keywords": ["opentelemetry", "otlp", "metrics", "telemetry"],
-  "hooks": "./hooks/hooks.json"
+  "keywords": ["opentelemetry", "otlp", "metrics", "telemetry"]
 }
