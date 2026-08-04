@@ -114,6 +114,43 @@ export ATEL_DEBUG=1
 > so one name per setting is enough. If you already export a machine-wide
 > `OTEL_EXPORTER_OTLP_ENDPOINT`, set `ATEL_ENDPOINT` alongside it.
 
+### Upgrading from 0.3.x
+
+**0.4.0 renames every environment variable.** Nothing is emitted until you
+migrate, and the failure is silent — no error, no warning, just a flat
+dashboard. If your metrics stopped after updating, this is why.
+
+| 0.3.x | 0.4.0 |
+|---|---|
+| `PI_OTLP_ENABLE=1` | `ATEL_PI=1` and/or `ATEL_CLAUDE_CODE=1` — one per agent, neither implies the other |
+| `PI_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_ENDPOINT` | `ATEL_ENDPOINT` |
+| `PI_OTLP_METRICS_ENDPOINT`, `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | `ATEL_METRICS_ENDPOINT` |
+| `OTEL_METRICS_EXPORTER` | `ATEL_EXPORTERS` — now defaults to `otlp`, was `console` |
+| `PI_OTLP_EXPORT_INTERVAL`, `OTEL_METRIC_EXPORT_INTERVAL` | `ATEL_EXPORT_INTERVAL` |
+| `PI_OTLP_HEADERS`, `OTEL_EXPORTER_OTLP_HEADERS` | `ATEL_HEADERS` |
+| `PI_OTLP_METRICS_HEADERS`, `OTEL_EXPORTER_OTLP_METRICS_HEADERS` | `ATEL_METRICS_HEADERS` |
+| `PI_OTLP_DEVICE_NAME` | `ATEL_DEVICE_NAME` |
+| `PI_OTLP_DEBUG` | `ATEL_DEBUG` |
+
+Check for leftovers, then confirm metrics flow again with `ATEL_DEBUG=1`:
+
+```bash
+env | grep -E '^(PI_OTLP|OTEL)_'   # should be empty, or set ATEL_* alongside
+```
+
+Two changes also affect existing dashboards and stored data:
+
+- **`prompt.length` is now `prompt.length.bucket`** (`0-100`, `100-1k`,
+  `1k-10k`, `10k+`). The raw character count made every distinct prompt length
+  its own Prometheus series. Any panel or query referencing `prompt_length`
+  returns nothing after upgrading; the shipped dashboard never used it.
+- **Token totals drop, and that is the fix.** 0.3.x re-counted the whole
+  transcript after compaction or resume, inflating `pi.token.usage` — measured
+  at 2.25× over one compact-and-resume session. Historical data stays inflated;
+  it cannot be backfilled. Since `service_version` is a metric label, you can
+  separate the two eras: `pi_token_usage_tokens_total{service_version="0.4.0"}`
+  is trustworthy, `0.3.x` is not.
+
 ### Delta temporality
 
 Claude Code runs each hook in its own short-lived process, so the plugin has no
