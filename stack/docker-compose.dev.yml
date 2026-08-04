@@ -1,0 +1,65 @@
+# Local development stack. Ports are deliberately offset from
+# docker-compose.homeserver.yml so this can run alongside a production
+# collector without either one stealing the other's traffic.
+#
+#   OTLP/HTTP   localhost:4418  (production uses 4318)
+#   OTLP/gRPC   localhost:4417
+#   Prometheus exporter  localhost:8890/metrics
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml --profile dashboard up -d
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:${OTELCOL_VERSION:-0.157.0}
+    container_name: pi-otlp-dev-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    # The image runs as uid 10001, which cannot write into a host directory
+    # owned by your user. Dev-only container, so match the host user instead of
+    # loosening permissions on ./dev-out.
+    user: "${DEV_UID:-1000}:${DEV_GID:-1000}"
+    volumes:
+      - ./otel-collector-dev.yaml:/etc/otelcol/config.yaml:ro
+      - ./dev-out:/output
+    ports:
+      - "127.0.0.1:4418:4318"
+      - "127.0.0.1:4417:4317"
+      - "127.0.0.1:8890:8889"
+    networks: [telemetry-dev]
+
+  # Only started with `--profile dashboard`; the collector alone is enough for
+  # metric-shape work, and skipping these keeps startup near-instant.
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_VERSION:-v3.13.2}
+    container_name: pi-otlp-dev-prometheus
+    profiles: [dashboard]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ./prometheus-dev.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "127.0.0.1:9091:9090"
+    networks: [telemetry-dev]
+
+  grafana:
+    image: grafana/grafana:${GRAFANA_VERSION:-13.1.1}
+    container_name: pi-otlp-dev-grafana
+    profiles: [dashboard]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3001:3000"
+    depends_on:
+      - prometheus
+    networks: [telemetry-dev]
+
+networks:
+  telemetry-dev:
+    driver: bridge

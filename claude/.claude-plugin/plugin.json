@@ -1,10 +1,11 @@
 {
   "name": "pi-otlp",
   "displayName": "pi OTLP Telemetry",
-  "version": "0.2.1",
+  "version": "0.4.0",
   "description": "Emit pi-compatible OTLP metrics from Claude Code sessions",
   "author": {
-    "name": "mikeyobrien"
+    "name": "rulasfia",
+    "url": "https://github.com/rulasfia"
   },
   "homepage": "https://github.com/rulasfia/agents-telemetry",
   "repository": "https://github.com/rulasfia/agents-telemetry",

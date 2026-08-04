@@ -1,3 +1,6 @@
+# Development collector — deliberately different from otel-collector.yaml:
+# no batching, verbose logs, and every payload written to disk so a single hook
+# event is visible immediately instead of being smoothed away by a 5s batch.
 receivers:
   otlp:
     protocols:
@@ -5,49 +8,44 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
-        cors:
-          allowed_origins:
-            - "*"
 
 processors:
-  batch:
-    timeout: 5s
-    send_batch_size: 1000
-
-  memory_limiter:
-    check_interval: 1s
-    limit_mib: 512
-    spike_limit_mib: 128
-
-  # The Claude Code plugin runs one short-lived process per hook event, so it
-  # exports delta metrics — a cumulative counter would restart at zero every
-  # time and Prometheus would see a permanently flat series. This stitches the
-  # per-process deltas back into the cumulative counters Prometheus expects.
-  # The pi extension exports cumulative and passes through unchanged.
+  # Same stitching the production collector does. Kept in its own pipeline so
+  # the raw deltas stay observable side by side with the cumulative result.
   deltatocumulative:
 
 exporters:
+  # verbosity: detailed prints every data point with its attributes, which is
+  # what makes `docker compose logs -f` usable as the primary dev feedback loop.
+  debug:
+    verbosity: detailed
+
+  file/raw:
+    path: /output/raw.jsonl
+
+  file/cumulative:
+    path: /output/cumulative.jsonl
+
   prometheus:
-    endpoint: "0.0.0.0:8889"
-    namespace: ""
-    const_labels:
-      source: pi-otlp
-    enable_open_metrics: true
+    endpoint: 0.0.0.0:8889
     resource_to_telemetry_conversion:
       enabled: true
-
-  debug:
-    verbosity: basic
 
 service:
   telemetry:
     logs:
       level: info
-    metrics:
-      address: 0.0.0.0:8888
 
   pipelines:
-    metrics:
+    # Exactly what the emitter sent, including delta temporality from the
+    # Claude bridge. Use this to check attributes and metric names.
+    metrics/raw:
       receivers: [otlp]
-      processors: [memory_limiter, deltatocumulative, batch]
-      exporters: [prometheus, debug]
+      exporters: [debug, file/raw]
+
+    # What Prometheus would end up scraping. Use this to check counter totals
+    # and to reproduce delta-stitching bugs.
+    metrics/cumulative:
+      receivers: [otlp]
+      processors: [deltatocumulative]
+      exporters: [file/cumulative, prometheus]

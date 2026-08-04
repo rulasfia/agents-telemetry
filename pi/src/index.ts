@@ -57,7 +57,7 @@ class FileDiagLogger implements DiagLogger {
 }
 
 export default function (pi: ExtensionAPI) {
-  const config = getConfig();
+  const config = getConfig("pi");
 
   if (!config.enabled) {
     return;

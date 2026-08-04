@@ -1,0 +1,17 @@
+{
+  "name": "agents-telemetry",
+  "description": "OpenTelemetry metrics for pi-coding-agent and Claude Code",
+  "owner": {
+    "name": "rulasfia",
+    "url": "https://github.com/rulasfia"
+  },
+  "plugins": [
+    {
+      "name": "pi-otlp",
+      "source": "./claude",
+      "description": "Emit pi-compatible OTLP metrics from Claude Code sessions",
+      "category": "monitoring",
+      "tags": ["opentelemetry", "otlp", "metrics", "observability", "telemetry"]
+    }
+  ]
+}

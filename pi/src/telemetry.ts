@@ -1,4 +1,5 @@
 import type { Meter, Counter, Histogram } from "@opentelemetry/api";
+import { promptLengthBucket } from "./attributes.js";
 
 export interface UsageData {
   input: number;
@@ -251,7 +252,7 @@ export function createTelemetryCollector(meter: Meter): TelemetryCollector {
     recordUserPrompt(attrs) {
       counters.promptCounter.add(1, {
         ...getBaseAttrs(),
-        "prompt.length": attrs.promptLength,
+        "prompt.length.bucket": promptLengthBucket(attrs.promptLength),
       });
       status.prompts++;
     },

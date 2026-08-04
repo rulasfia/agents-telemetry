@@ -1,102 +1,155 @@
 # agents-telemetry
 
-OpenTelemetry metrics extension for [pi-coding-agent](https://github.com/badlogic/pi-mono). Track sessions, turns, tool usage, token consumption, costs, and performance timing.
+OpenTelemetry metrics for [pi-coding-agent](https://github.com/badlogic/pi-mono) **and** [Claude Code](https://claude.com/claude-code). Track sessions, turns, tool usage, token consumption, costs, and performance timing.
 
 <img width="1055" height="856" alt="Screenshot 2026-02-12 at 4 14 58 PM" src="https://github.com/user-attachments/assets/a6a377de-f659-4b8c-8f40-8c9038eb92a6" />
 
+Both agents emit the **same `pi.*` metric names**, so one dashboard covers both. They are told apart by `service_name`: `pi-coding-agent` vs `pi-otlp-claude`.
+
 ## Installation
+
+Each agent installs with a single command — no clone, no build step.
 
 ### pi-coding-agent
 
-Install from a local clone:
+```bash
+pi install git:github.com/rulasfia/agents-telemetry
+```
+
+The extension is loaded directly from source, so there is nothing to compile.
+
+To hack on it, install from a local clone instead — source changes take effect after `/reload`:
 
 ```bash
 pi install /absolute/path/to/agents-telemetry
 ```
 
-The local package is loaded directly from disk, so source changes take effect after `/reload`.
+See [`pi/README.md`](./pi/README.md) for how the extension works internally.
 
 ### Claude Code
 
-Build the plugin first:
+Add the marketplace, then install the plugin:
 
-```bash
-cd /absolute/path/to/agents-telemetry
-npm run build:claude
+```
+/plugin marketplace add rulasfia/agents-telemetry
+/plugin install pi-otlp@agents-telemetry
 ```
 
-Then load it with `--plugin-dir`:
+The plugin ships as a single pre-bundled file with no runtime dependencies, so nothing is compiled or `npm install`ed on your machine. Pick up later releases with `/plugin marketplace update agents-telemetry`.
+
+To hack on it, build from a local clone and load that with `--plugin-dir`:
 
 ```bash
+npm ci && npm run build:claude
 claude --plugin-dir "$(pwd)/claude"
 ```
 
-To avoid passing the flag every time, add it to your shell profile as an alias:
+> **Note:** `--plugin-dir` must point at the `claude/` directory, not the repo root. `~/.claude/skills/` is for `SKILL.md` skills and does not load a plugin's hooks.
+
+> Your existing Grafana dashboards work unchanged, but the Claude Code plugin needs one collector-side change the pi extension does not — see [Delta temporality](#delta-temporality).
+
+See [`claude/README.md`](./claude/README.md) for how the hook bridge works internally.
+
+### Next step
+
+Neither emitter does anything until you enable it. At minimum:
 
 ```bash
-alias claude='claude --plugin-dir "/absolute/path/to/agents-telemetry/claude"'
+export ATEL_PI=1              # turn on the pi extension
+export ATEL_CLAUDE_CODE=1     # turn on the Claude Code plugin
+export ATEL_ENDPOINT=http://localhost:4318
 ```
 
-> **Note:** `claude plugin install` is only for marketplace plugins, and `~/.claude/skills/` is for `SKILL.md` skills — neither loads a local plugin's hooks. Use `--plugin-dir`.
-
-> The plugin emits the **same `pi.*` metric names** as the pi extension, so your existing Grafana dashboards work unchanged. It does require one collector-side change — see [Delta temporality](#delta-temporality).
+See [Configuration](#configuration) for the full set.
 
 ## Configuration
 
-Enable via environment variables:
+Everything is configured through one `ATEL_*` namespace, shared by both agents.
+Only enablement is per-agent, so you can run telemetry for one without the other.
 
 ```bash
-# Required: enable the extension / plugin
-export PI_OTLP_ENABLE=1
+# Enablement — set the one(s) you want. Nothing is emitted otherwise.
+export ATEL_PI=1
+export ATEL_CLAUDE_CODE=1
 
-# Choose exporters (console, otlp, or both)
-export OTEL_METRICS_EXPORTER=console
+# Base endpoint: /v1/metrics is appended.
+export ATEL_ENDPOINT=http://homeserver:4318
 
-# For OTLP export (e.g., to Grafana, Datadog, or any OTLP-compatible backend)
-export OTEL_METRICS_EXPORTER=otlp
+# Or a complete metrics endpoint, used verbatim (takes precedence over the base form).
+export ATEL_METRICS_ENDPOINT=http://homeserver:4318/v1/metrics
 
-# Base endpoint: the extension appends /v1/metrics.
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://homeserver:4318
+# Optional: exporters — otlp, console, or both. Default: otlp.
+export ATEL_EXPORTERS=otlp,console
 
-# Or use a complete metrics endpoint verbatim (takes precedence over the base endpoint).
-export OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://homeserver:4318/v1/metrics
+# Optional: export interval in ms. Default: 60000.
+export ATEL_EXPORT_INTERVAL=10000
 
-# Optional: export interval (default: 60000ms)
-export OTEL_METRIC_EXPORT_INTERVAL=10000
+# Optional: headers for authentication. Metrics-specific headers override the general ones.
+export ATEL_HEADERS="Authorization=Bearer token"
+export ATEL_METRICS_HEADERS="Authorization=Bearer metrics-token"
 
 # Optional: stable, friendly device label for multi-device dashboards.
-export PI_OTLP_DEVICE_NAME=desktop
+export ATEL_DEVICE_NAME=desktop
 
-# Optional: OTLP headers for authentication. Signal-specific headers override these.
-export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer token"
-export OTEL_EXPORTER_OTLP_METRICS_HEADERS="Authorization=Bearer metrics-token"
-
-# Optional: debug logging
-export PI_OTLP_DEBUG=1
+# Optional: debug logging.
+export ATEL_DEBUG=1
 ```
 
-### Claude Code compatibility
+| Variable | Default | Notes |
+|---|---|---|
+| `ATEL_PI` | off | `1` enables the pi extension |
+| `ATEL_CLAUDE_CODE` | off | `1` enables the Claude Code plugin |
+| `ATEL_ENDPOINT` | `http://localhost:4318` | base URL; `/v1/metrics` is appended |
+| `ATEL_METRICS_ENDPOINT` | — | used verbatim; wins over `ATEL_ENDPOINT` |
+| `ATEL_EXPORTERS` | `otlp` | comma-separated: `otlp`, `console` |
+| `ATEL_EXPORT_INTERVAL` | `60000` | milliseconds |
+| `ATEL_HEADERS` | — | `Key=value,Key2=value2` |
+| `ATEL_METRICS_HEADERS` | — | merged over `ATEL_HEADERS` |
+| `ATEL_DEVICE_NAME` | — | adds a `device.name` resource attribute |
+| `ATEL_DEBUG` | off | verbose diagnostics; also adds the console exporter |
 
-Claude Code strips `OTEL_*` environment variables from hook subprocesses. To keep one shared config, the plugin also reads `PI_OTLP_*` fallbacks:
+> **`OTEL_*` and `PI_OTLP_*` are not read.** Claude Code strips `OTEL_*` from hook
+> subprocesses, so honouring it would configure one agent and silently skip the
+> other — the reason the old `PI_OTLP_*` fallbacks existed. `ATEL_*` survives that,
+> so one name per setting is enough. If you already export a machine-wide
+> `OTEL_EXPORTER_OTLP_ENDPOINT`, set `ATEL_ENDPOINT` alongside it.
+
+### Upgrading from 0.3.x
+
+**0.4.0 renames every environment variable.** Nothing is emitted until you
+migrate, and the failure is silent — no error, no warning, just a flat
+dashboard. If your metrics stopped after updating, this is why.
+
+| 0.3.x | 0.4.0 |
+|---|---|
+| `PI_OTLP_ENABLE=1` | `ATEL_PI=1` and/or `ATEL_CLAUDE_CODE=1` — one per agent, neither implies the other |
+| `PI_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_ENDPOINT` | `ATEL_ENDPOINT` |
+| `PI_OTLP_METRICS_ENDPOINT`, `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | `ATEL_METRICS_ENDPOINT` |
+| `OTEL_METRICS_EXPORTER` | `ATEL_EXPORTERS` — now defaults to `otlp`, was `console` |
+| `PI_OTLP_EXPORT_INTERVAL`, `OTEL_METRIC_EXPORT_INTERVAL` | `ATEL_EXPORT_INTERVAL` |
+| `PI_OTLP_HEADERS`, `OTEL_EXPORTER_OTLP_HEADERS` | `ATEL_HEADERS` |
+| `PI_OTLP_METRICS_HEADERS`, `OTEL_EXPORTER_OTLP_METRICS_HEADERS` | `ATEL_METRICS_HEADERS` |
+| `PI_OTLP_DEVICE_NAME` | `ATEL_DEVICE_NAME` |
+| `PI_OTLP_DEBUG` | `ATEL_DEBUG` |
+
+Check for leftovers, then confirm metrics flow again with `ATEL_DEBUG=1`:
 
 ```bash
-export PI_OTLP_ENABLE=1
-
-# Base endpoint — /v1/metrics is appended, mirroring OTEL_EXPORTER_OTLP_ENDPOINT.
-export PI_OTLP_ENDPOINT=http://homeserver:4318
-
-# Or a complete metrics endpoint used verbatim, mirroring
-# OTEL_EXPORTER_OTLP_METRICS_ENDPOINT (takes precedence over the base form).
-export PI_OTLP_METRICS_ENDPOINT=http://homeserver:4318/v1/metrics
-
-export PI_OTLP_HEADERS="Authorization=Bearer token"
-export PI_OTLP_METRICS_HEADERS="Authorization=Bearer metrics-token"
-export PI_OTLP_EXPORT_INTERVAL=10000
+env | grep -E '^(PI_OTLP|OTEL)_'   # should be empty, or set ATEL_* alongside
 ```
 
-These work for both pi and Claude Code without duplication. Each `PI_OTLP_*`
-variable is the fallback for exactly one `OTEL_*` variable; the `OTEL_*` form
-wins when both are set.
+Two changes also affect existing dashboards and stored data:
+
+- **`prompt.length` is now `prompt.length.bucket`** (`0-100`, `100-1k`,
+  `1k-10k`, `10k+`). The raw character count made every distinct prompt length
+  its own Prometheus series. Any panel or query referencing `prompt_length`
+  returns nothing after upgrading; the shipped dashboard never used it.
+- **Token totals drop, and that is the fix.** 0.3.x re-counted the whole
+  transcript after compaction or resume, inflating `pi.token.usage` — measured
+  at 2.25× over one compact-and-resume session. Historical data stays inflated;
+  it cannot be backfilled. Since `service_version` is a metric label, you can
+  separate the two eras: `pi_token_usage_tokens_total{service_version="0.4.0"}`
+  is trustworthy, `0.3.x` is not.
 
 ### Delta temporality
 
@@ -139,7 +192,7 @@ All counters include base attributes: `session.id`, `provider`, `model`.
 | `pi.turn.count` | Agent turns (tool-calling loops) | — |
 | `pi.tool_call.count` | Tool invocations | `tool.name` |
 | `pi.tool_result.count` | Tool completions | `tool.name`, `success` |
-| `pi.prompt.count` | User prompts | `prompt.length` |
+| `pi.prompt.count` | User prompts | `prompt.length.bucket` (`0-100`/`100-1k`/`1k-10k`/`10k+`) |
 | `pi.token.usage` | Token consumption | `type` (input/output/cache_read/cache_write) |
 | `pi.cost.usage` | Cost in USD | `type` (input/output/cache_read/cache_write) |
 

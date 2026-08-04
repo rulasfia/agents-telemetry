@@ -25,13 +25,24 @@ import {
 } from "fs";
 import { homedir } from "os";
 import { join } from "path";
+import { promptLengthBucket } from "../../pi/src/attributes.js";
 import { getConfig, type OtlpConfig } from "../../pi/src/config.js";
-import { readLastModel, readTranscriptDelta } from "./transcript.js";
+import {
+  readLastModel,
+  readTranscriptDelta,
+  transcriptSize,
+} from "./transcript.js";
 import { VERSION } from "./version.js";
 
 const SERVICE_NAME = "pi-otlp-claude";
 const STATE_DIR = join(homedir(), ".pi", "otlp-claude");
 const STALE_STATE_MS = 7 * 24 * 60 * 60 * 1000;
+/**
+ * Longest a synchronous hook may block on the exporter. Telemetry must never
+ * be felt in the session, so an unreachable collector costs a datapoint rather
+ * than the user's time.
+ */
+const FLUSH_TIMEOUT_MS = 3000;
 
 interface State {
   sessionStartTime?: number;
@@ -131,31 +142,78 @@ function createMeterProvider(config: OtlpConfig) {
 
   const readers = [];
 
-  if (config.debug) {
+  // SessionStart, Stop and SessionEnd run synchronously, so the forceFlush in
+  // main() sits on the user's critical path. What actually stalled a session
+  // against an unreachable collector was the *reader's* export timeout, which
+  // defaults to 30s — capping only the exporter's own request timeout is not
+  // enough, since the reader wraps the whole export cycle.
+  //
+  // The reader also throws if exportTimeoutMillis > exportIntervalMillis, and
+  // ATEL_EXPORT_INTERVAL is user-settable (validated only as > 0), so clamp
+  // instead of trusting the pair: a throw here is swallowed by main()'s catch
+  // and would silently disable telemetry rather than fail loudly.
+  const exportTimeoutMillis = Math.min(
+    FLUSH_TIMEOUT_MS,
+    config.exportIntervalMs,
+  );
+
+  // ATEL_EXPORTERS is honoured here exactly as in the pi extension. The older
+  // OTEL_METRICS_EXPORTER could not be, because Claude Code strips OTEL_* from
+  // hook subprocesses; ATEL_* survives, so both emitters now read one variable.
+  // Debug adds console on top, since a short-lived process leaves no other trace.
+  if (config.exporters.includes("console") || config.debug) {
     readers.push(
       new PeriodicExportingMetricReader({
         exporter: new ConsoleMetricExporter(),
         exportIntervalMillis: config.exportIntervalMs,
+        exportTimeoutMillis,
       }),
     );
   }
 
-  readers.push(
-    new PeriodicExportingMetricReader({
-      exporter: new OTLPMetricExporter({
-        url: config.otlpEndpoint,
-        headers: config.otlpHeaders,
-        // Every hook event runs in a fresh process, so a cumulative counter
-        // would restart at zero and report 1 forever — Prometheus would see a
-        // flat series and increase()/rate() would return nothing. Delta lets
-        // the collector stitch the per-process contributions together.
-        temporalityPreference: AggregationTemporalityPreference.DELTA,
+  if (config.exporters.includes("otlp")) {
+    readers.push(
+      new PeriodicExportingMetricReader({
+        exporter: new OTLPMetricExporter({
+          url: config.otlpEndpoint,
+          headers: config.otlpHeaders,
+          // Every hook event runs in a fresh process, so a cumulative counter
+          // would restart at zero and report 1 forever — Prometheus would see a
+          // flat series and increase()/rate() would return nothing. Delta lets
+          // the collector stitch the per-process contributions together.
+          temporalityPreference: AggregationTemporalityPreference.DELTA,
+          // Caps the HTTP request itself; the reader timeout below caps the
+          // export cycle around it. Losing a datapoint beats a stalled
+          // prompt, so this does not retry.
+          timeoutMillis: FLUSH_TIMEOUT_MS,
+        }),
+        exportIntervalMillis: config.exportIntervalMs,
+        exportTimeoutMillis,
       }),
-      exportIntervalMillis: config.exportIntervalMs,
-    }),
-  );
+    );
+  }
+
+  if (readers.length === 0) return null;
 
   return new MeterProvider({ resource, readers });
+}
+
+/**
+ * Run `work`, but stop waiting after `ms`. Never rejects.
+ *
+ * The abandoned work keeps running; `process.exit` at the bottom of this file
+ * is what actually reclaims it. This only guarantees the hook stops blocking.
+ */
+function settleWithin(work: () => Promise<void>, ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    timer.unref?.();
+    const done = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    work().then(done, done);
+  });
 }
 
 function baseAttrs(sessionId: string, state: State) {
@@ -167,11 +225,7 @@ function baseAttrs(sessionId: string, state: State) {
 }
 
 async function main() {
-  const config = getConfig();
-  // `config.exporters` (OTEL_METRICS_EXPORTER) is deliberately ignored here:
-  // Claude Code strips OTEL_* from hook subprocesses, so honouring it would
-  // silently disable OTLP export. The bridge always exports OTLP, plus console
-  // when PI_OTLP_DEBUG=1.
+  const config = getConfig("claude-code");
   if (!config.enabled) return;
 
   const rawEvent = await readStdin();
@@ -199,8 +253,32 @@ async function main() {
   switch (eventName) {
     case "SessionStart": {
       pruneStaleState(now);
-      state.sessionStartTime = now;
-      state.transcriptOffset = 0;
+
+      // Start reading at end-of-file, not byte 0. SessionStart fires with
+      // source "startup" | "clear" | "resume" | "fork" | "compact", and in
+      // every case but startup the transcript already holds messages whose
+      // usage was reported by a previous session — or, after compaction, by
+      // this very session. Resetting to 0 makes the next Stop re-sum all of
+      // it and double the token totals. Seeking to the current size is the
+      // one rule that is correct for every source: on startup the file is
+      // empty or absent, so this is still 0. A missing transcript_path falls
+      // back to the stored offset rather than 0, which is safer on resume.
+      const startTranscript = event.transcript_path as string | undefined;
+      state.transcriptOffset = startTranscript
+        ? transcriptSize(startTranscript)
+        : (state.transcriptOffset ?? 0);
+
+      // Compaction is the only source that fires mid-session, under the same
+      // session id, so it alone inherits the running clock and must not count
+      // a second session. Every other source is a new process: it starts a
+      // fresh clock even when state survived, because SessionEnd is not
+      // guaranteed to have fired (see pruneStaleState) and inheriting a
+      // days-old sessionStartTime would report that gap as session duration.
+      const source = event.source as string | undefined;
+      const isNewSession = source !== "compact";
+      if (isNewSession || state.sessionStartTime === undefined) {
+        state.sessionStartTime = now;
+      }
 
       const modelField = event.model as
         | Record<string, string>
@@ -217,15 +295,17 @@ async function main() {
         state.model = process.env.ANTHROPIC_MODEL ?? "unknown";
       }
 
-      const attrs = baseAttrs(sessionId, state);
-      emits.push((meter) =>
-        meter
-          .createCounter("pi.session.count", {
-            description: "Count of pi coding sessions started",
-            unit: "1",
-          })
-          .add(1, attrs),
-      );
+      if (isNewSession) {
+        const attrs = baseAttrs(sessionId, state);
+        emits.push((meter) =>
+          meter
+            .createCounter("pi.session.count", {
+              description: "Count of pi coding sessions started",
+              unit: "1",
+            })
+            .add(1, attrs),
+        );
+      }
       break;
     }
 
@@ -239,7 +319,10 @@ async function main() {
             description: "Count of user prompts submitted",
             unit: "1",
           })
-          .add(1, { ...attrs, "prompt.length": promptText.length }),
+          .add(1, {
+            ...attrs,
+            "prompt.length.bucket": promptLengthBucket(promptText.length),
+          }),
       );
       break;
     }
@@ -380,27 +463,49 @@ async function main() {
   if (emits.length === 0) return;
 
   const meterProvider = createMeterProvider(config);
+  if (!meterProvider) return;
   try {
     const meter = meterProvider.getMeter("com.pi.otlp.claude");
     for (const emit of emits) emit(meter);
   } finally {
-    try {
-      await meterProvider.forceFlush();
-    } catch {
-      // Ignore flush errors so we don't block Claude Code.
-    }
-    try {
-      await meterProvider.shutdown();
-    } catch {
-      // Ignore shutdown errors.
-    }
+    // Bound the teardown ourselves rather than trusting the SDK's own timeout.
+    // When the reader's export timeout fires it abandons the in-flight request
+    // without cancelling it, then PeriodicExportingMetricReader.onForceFlush
+    // still awaits exporter.forceFlush() — which stays pending for as long as
+    // the socket does. Against an unreachable collector that means forceFlush()
+    // never settles, so no timeout configured *inside* the SDK can help.
+    await settleWithin(async () => {
+      try {
+        await meterProvider.forceFlush();
+      } catch {
+        // Ignore flush errors so we don't block Claude Code.
+      }
+      try {
+        await meterProvider.shutdown();
+      } catch {
+        // Ignore shutdown errors.
+      }
+    }, FLUSH_TIMEOUT_MS);
   }
 }
 
-main().catch((err) => {
-  // Exit 0 regardless: a non-zero hook exit surfaces as a visible failure in
-  // Claude Code, and telemetry should never interrupt the session.
-  if (process.env.PI_OTLP_DEBUG === "1") {
-    console.error("[OTLP] Bridge error:", err);
-  }
-});
+main()
+  .catch((err) => {
+    // Exit 0 regardless: a non-zero hook exit surfaces as a visible failure in
+    // Claude Code, and telemetry should never interrupt the session.
+    if (process.env.ATEL_DEBUG === "1") {
+      console.error("[OTLP] Bridge error:", err);
+    }
+  })
+  .finally(() => {
+    // Capping the export timeout is not enough on its own: a connect attempt
+    // to an unreachable collector keeps its socket, and therefore the event
+    // loop, alive for the full TCP SYN-retry window (~2 min on Linux) long
+    // after the exporter gave up at FLUSH_TIMEOUT_MS. Returning from main()
+    // means the work is done, so exit rather than let a dead socket hold a
+    // synchronous hook — and the user's session — open.
+    //
+    // This can truncate console-exporter output when the collector is also
+    // unreachable, which only affects debug runs.
+    process.exit(0);
+  });

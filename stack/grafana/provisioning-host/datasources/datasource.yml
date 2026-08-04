@@ -1,7 +1,12 @@
 apiVersion: 1
 
 datasources:
+  # The uid must be set and must match the dev provisioning, because the
+  # dashboard's Data Source variable defaults to "prometheus". Without it
+  # Grafana assigns a random uid and every panel resolves to a datasource
+  # that does not exist.
   - name: Prometheus
+    uid: prometheus
     type: prometheus
     access: proxy
     url: http://127.0.0.1:9090

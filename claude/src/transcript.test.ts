@@ -8,7 +8,12 @@ import {
 } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { readLastModel, readTranscriptDelta, sumUsage } from "./transcript.js";
+import {
+  readLastModel,
+  readTranscriptDelta,
+  sumUsage,
+  transcriptSize,
+} from "./transcript.js";
 import { VERSION } from "./version.js";
 
 function assistant(usage: Record<string, number>, model = "claude-sonnet-5") {
@@ -141,6 +146,60 @@ describe("readTranscriptDelta", () => {
     const stale = readTranscriptDelta(file, 0).offset + 1000;
     writeFileSync(file, assistant({ output_tokens: 3 }) + "\n");
     expect(readTranscriptDelta(file, stale).output).toBe(3);
+  });
+});
+
+describe("transcriptSize", () => {
+  let dir: string;
+  let file: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "pi-otlp-"));
+    file = join(dir, "transcript.jsonl");
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("returns 0 for a missing or unnamed transcript", () => {
+    expect(transcriptSize(undefined)).toBe(0);
+    expect(transcriptSize(join(dir, "nope.jsonl"))).toBe(0);
+  });
+
+  it("returns 0 for the empty transcript a fresh session starts with", () => {
+    writeFileSync(file, "");
+    expect(transcriptSize(file)).toBe(0);
+  });
+
+  it("seeks past prior usage so a resumed session re-counts nothing", () => {
+    // A session that already reported these tokens, then exited.
+    writeFileSync(
+      file,
+      [
+        assistant({ input_tokens: 100, output_tokens: 200 }),
+        assistant({ input_tokens: 300, output_tokens: 400 }),
+        "",
+      ].join("\n"),
+    );
+
+    // `claude --resume` opens the same transcript; SessionStart seeks to EOF.
+    const resumeOffset = transcriptSize(file);
+    expect(readTranscriptDelta(file, resumeOffset).input).toBe(0);
+
+    // Only the resumed session's own turn is reported.
+    appendFileSync(file, assistant({ input_tokens: 7, output_tokens: 9 }) + "\n");
+    const delta = readTranscriptDelta(file, resumeOffset);
+    expect(delta.input).toBe(7);
+    expect(delta.output).toBe(9);
+  });
+
+  it("matches the offset a mid-session read had already reached", () => {
+    // Compaction fires SessionStart on the same, append-only transcript, so
+    // seeking to EOF must not rewind the offset the session already holds.
+    writeFileSync(file, assistant({ output_tokens: 10 }) + "\n");
+    const afterStop = readTranscriptDelta(file, 0).offset;
+    expect(transcriptSize(file)).toBe(afterStop);
   });
 });
 

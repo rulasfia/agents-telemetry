@@ -1,5 +1,13 @@
 # Shared-config exporter gap for pi
 
+> **RESOLVED.** Fixed more broadly than either option below: the `OTEL_*` /
+> `PI_OTLP_*` split that caused the gap was replaced with a single `ATEL_*`
+> namespace, and `ATEL_EXPORTERS` now defaults to `otlp`. The bridge no longer
+> special-cases the exporter selector either — both emitters read the same
+> variable. See the Configuration section of the root README. The problem
+> statement below is kept for the reasoning, but the variable names in it no
+> longer exist.
+
 **Severity:** Medium — a documented configuration silently disables OTLP export for
 one of the two sources.
 **Files:** `src/config.ts`, `README.md`, tests
