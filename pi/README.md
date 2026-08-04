@@ -55,7 +55,7 @@ session_start                                    pi.session.count +1
 |   |   save turnStartTime
 |   |
 |   +-- input {text}                             pi.prompt.count +1
-|   |       (prompt.length attribute)
+|   |       (prompt.length.bucket attribute)
 |   |
 |   +-- tool_execution_start {toolCallId}        pi.tool_call.count +1
 |   |   |   toolStartTimes[toolCallId] = now
@@ -153,9 +153,11 @@ plus:
   `pi.tool_result.count` / `pi.tool.duration`;
 - `type` (`input` / `output` / `cache_read` / `cache_write`) on
   `pi.token.usage` and `pi.cost.usage`;
-- `prompt.length` on `pi.prompt.count` — the raw character count, which is
-  effectively unbounded cardinality. See
-  [plan 05](../docs/plans/05-minor-improvements.md).
+- `prompt.length.bucket` on `pi.prompt.count` — one of `0-100`, `100-1k`,
+  `1k-10k`, `10k+`. This was the raw character count until 0.4.0, which made
+  every distinct prompt length its own series; the bucket keeps the rough
+  signal at fixed cardinality. Both emitters share `promptLengthBucket` from
+  `pi/src/attributes.ts` so the two never split a series.
 
 ## State held in the collector
 

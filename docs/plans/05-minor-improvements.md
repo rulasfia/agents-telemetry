@@ -3,7 +3,7 @@
 **Severity:** Low — none of these break the dashboard today; each is a small
 robustness or hygiene win.
 
-## 1. `prompt.length` attribute is unbounded cardinality
+## 1. `prompt.length` attribute is unbounded cardinality — **RESOLVED**
 
 **Files:** `pi/src/telemetry.ts` (`recordUserPrompt`), `claude/src/bridge.ts`
 (UserPromptSubmit), README metrics table.
@@ -15,6 +15,15 @@ dashboard uses it.
 **Fix:** bucket it (`0-100`, `100-1k`, `1k-10k`, `10k+`) or drop the attribute
 entirely. Dropping is simplest; bucketing preserves a rough "how long are prompts"
 signal. Apply identically in both emitters and update the README table.
+
+**Shipped in 0.4.0:** bucketed. The attribute is renamed `prompt.length` →
+`prompt.length.bucket`, because the values changed shape and a silent swap would
+have left old and new data sharing one label name. The four-bucket helper is
+`promptLengthBucket` in the new `pi/src/attributes.ts`, imported by *both* emitters
+— the plan's "apply identically in both" is a standing trap, since a bucketing
+difference between them splits one series in two, so the boundaries now live in one
+shared module rather than being duplicated. Non-finite and negative lengths fold
+into `0-100` so a bad value can never escape as its own label.
 
 ## 2. `session.id` drop advice isn't reflected in shipped collector configs
 

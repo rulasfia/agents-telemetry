@@ -138,15 +138,31 @@ describe("TelemetryCollector", () => {
   });
 
   describe("recordUserPrompt", () => {
-    it("increments prompt counter with length attribute", () => {
+    it("increments prompt counter with a bucketed length attribute", () => {
       collector.recordSessionStart({ sessionId: "sess-123" });
       collector.recordUserPrompt({ promptLength: 42 });
 
       const counter = counters.get("pi.prompt.count");
       expect(counter?.add).toHaveBeenCalledWith(1, {
         ...baseAttrs("sess-123"),
-        "prompt.length": 42,
+        "prompt.length.bucket": "0-100",
       });
+    });
+
+    it("does not add a series per distinct prompt length", () => {
+      collector.recordSessionStart({ sessionId: "sess-123" });
+      for (const promptLength of [10, 11, 12, 4000, 4001]) {
+        collector.recordUserPrompt({ promptLength });
+      }
+
+      const counter = counters.get("pi.prompt.count");
+      const buckets = new Set(
+        counter?.add.mock.calls.map(
+          (call: unknown[]) =>
+            (call[1] as Record<string, string>)["prompt.length.bucket"],
+        ),
+      );
+      expect(buckets).toEqual(new Set(["0-100", "1k-10k"]));
     });
   });
 

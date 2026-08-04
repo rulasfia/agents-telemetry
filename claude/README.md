@@ -65,7 +65,7 @@ state file and the transcript on disk.
 
 +-- UserPromptSubmit ---------------------------- async, 10s ----+
 |  state:  write turnStartTime                                   |
-|  emit:   pi.prompt.count            (prompt.length attribute)  |
+|  emit:   pi.prompt.count     (prompt.length.bucket attribute)  |
 +----------------------------------------------------------------+
       |
       |  Claude Code: provider replies with a tool request
@@ -218,8 +218,8 @@ stripped, so the special case is gone and both emitters read one variable.
 
 | Hook | Sync? | Timeout | Metrics emitted | State written |
 |------|-------|---------|-----------------|---------------|
-| `SessionStart` | sync | 10s | `pi.session.count` | ✅ start time, provider/model, `transcriptOffset = 0` |
-| `UserPromptSubmit` | async | 10s | `pi.prompt.count` (`prompt.length`) | ✅ `turnStartTime` |
+| `SessionStart` | sync | 10s | `pi.session.count` (not on `source: "compact"`) | ✅ start time, provider/model, `transcriptOffset = transcript size` |
+| `UserPromptSubmit` | async | 10s | `pi.prompt.count` (`prompt.length.bucket`) | ✅ `turnStartTime` |
 | `PostToolUse` | async | 10s | `pi.tool_call.count`, `pi.tool_result.count` (`success=true`), `pi.tool.duration` | ❌ |
 | `PostToolUseFailure` | async | 10s | same, `success=false` | ❌ |
 | `Stop` | sync | 10s | `pi.token.usage` (4 `type`s), `pi.turn.duration`, `pi.turn.count` | ✅ offset, model, clears `turnStartTime` |

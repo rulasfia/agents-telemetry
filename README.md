@@ -155,7 +155,7 @@ All counters include base attributes: `session.id`, `provider`, `model`.
 | `pi.turn.count` | Agent turns (tool-calling loops) | — |
 | `pi.tool_call.count` | Tool invocations | `tool.name` |
 | `pi.tool_result.count` | Tool completions | `tool.name`, `success` |
-| `pi.prompt.count` | User prompts | `prompt.length` |
+| `pi.prompt.count` | User prompts | `prompt.length.bucket` (`0-100`/`100-1k`/`1k-10k`/`10k+`) |
 | `pi.token.usage` | Token consumption | `type` (input/output/cache_read/cache_write) |
 | `pi.cost.usage` | Cost in USD | `type` (input/output/cache_read/cache_write) |
 
