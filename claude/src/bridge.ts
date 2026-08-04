@@ -26,7 +26,11 @@ import {
 import { homedir } from "os";
 import { join } from "path";
 import { getConfig, type OtlpConfig } from "../../pi/src/config.js";
-import { readLastModel, readTranscriptDelta } from "./transcript.js";
+import {
+  readLastModel,
+  readTranscriptDelta,
+  transcriptSize,
+} from "./transcript.js";
 import { VERSION } from "./version.js";
 
 const SERVICE_NAME = "pi-otlp-claude";
@@ -203,8 +207,32 @@ async function main() {
   switch (eventName) {
     case "SessionStart": {
       pruneStaleState(now);
-      state.sessionStartTime = now;
-      state.transcriptOffset = 0;
+
+      // Start reading at end-of-file, not byte 0. SessionStart fires with
+      // source "startup" | "clear" | "resume" | "fork" | "compact", and in
+      // every case but startup the transcript already holds messages whose
+      // usage was reported by a previous session — or, after compaction, by
+      // this very session. Resetting to 0 makes the next Stop re-sum all of
+      // it and double the token totals. Seeking to the current size is the
+      // one rule that is correct for every source: on startup the file is
+      // empty or absent, so this is still 0. A missing transcript_path falls
+      // back to the stored offset rather than 0, which is safer on resume.
+      const startTranscript = event.transcript_path as string | undefined;
+      state.transcriptOffset = startTranscript
+        ? transcriptSize(startTranscript)
+        : (state.transcriptOffset ?? 0);
+
+      // Compaction is the only source that fires mid-session, under the same
+      // session id, so it alone inherits the running clock and must not count
+      // a second session. Every other source is a new process: it starts a
+      // fresh clock even when state survived, because SessionEnd is not
+      // guaranteed to have fired (see pruneStaleState) and inheriting a
+      // days-old sessionStartTime would report that gap as session duration.
+      const source = event.source as string | undefined;
+      const isNewSession = source !== "compact";
+      if (isNewSession || state.sessionStartTime === undefined) {
+        state.sessionStartTime = now;
+      }
 
       const modelField = event.model as
         | Record<string, string>
@@ -221,15 +249,17 @@ async function main() {
         state.model = process.env.ANTHROPIC_MODEL ?? "unknown";
       }
 
-      const attrs = baseAttrs(sessionId, state);
-      emits.push((meter) =>
-        meter
-          .createCounter("pi.session.count", {
-            description: "Count of pi coding sessions started",
-            unit: "1",
-          })
-          .add(1, attrs),
-      );
+      if (isNewSession) {
+        const attrs = baseAttrs(sessionId, state);
+        emits.push((meter) =>
+          meter
+            .createCounter("pi.session.count", {
+              description: "Count of pi coding sessions started",
+              unit: "1",
+            })
+            .add(1, attrs),
+        );
+      }
       break;
     }
 

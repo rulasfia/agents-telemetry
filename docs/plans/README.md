@@ -8,7 +8,7 @@ issues found, ranked by severity.
 | # | Plan | Severity | Area |
 |---|------|----------|------|
 | 1 | [Dashboard fixes](./01-dashboard-fixes.md) | ~~High~~ **resolved** | `stack/grafana/` |
-| 2 | [Resume/compact token double-count](./02-resume-token-double-count.md) | High | `claude/` |
+| 2 | [Resume/compact token double-count](./02-resume-token-double-count.md) | ~~High~~ **resolved** | `claude/` |
 | 3 | [Shared-config exporter gap for pi](./03-shared-config-exporter-gap.md) | ~~Medium~~ **resolved** | `pi/src/config.ts` |
 | 4 | [Sync hook stall on unreachable collector](./04-sync-hook-exporter-timeout.md) | Medium | `claude/` |
 | 5 | [Minor improvements](./05-minor-improvements.md) | Low | various |

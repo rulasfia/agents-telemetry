@@ -114,6 +114,7 @@ claude --plugin-dir "$(pwd)/claude"
 - Each hook event spawns a fresh `node claude/dist/bridge.cjs` process that reads the event JSON from stdin.
 - Because each process is short-lived, the bridge exports **delta** temporality. The collector must run the `deltatocumulative` processor to turn deltas into cumulative counters for Prometheus.
 - The bridge persists per-session state in `~/.pi/otlp-claude/` so it can resume across hooks.
+- **`SessionStart` seeks the transcript to EOF, it does not rewind to 0.** The hook fires with `source` of `startup` | `clear` | `resume` | `fork` | `compact`, and in every case but `startup` the transcript already holds counted messages. Compaction is the common one: it raises `SessionStart` *mid-session*, same session id, on the same append-only file — rewinding there re-counted the whole pre-compaction session (measured 2.25× on `pi.token.usage`). `compact` also must not increment `pi.session.count`; the guard is `source !== "compact" && state.sessionStartTime === undefined`. Details and the measured comparison: [plan 02](docs/plans/02-resume-token-double-count.md).
 - The bridge does **not** emit `pi.cost.usage` — Claude Code hook events do not expose cost data.
 - Debug mode (`ATEL_DEBUG=1`) also enables a console exporter in addition to whatever `ATEL_EXPORTERS` selects.
 

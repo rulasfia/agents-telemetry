@@ -59,6 +59,21 @@ export function sumUsage(chunk: string): UsageTotals {
   return totals;
 }
 
+/**
+ * Byte length of the transcript, or 0 if it is missing or unreadable.
+ *
+ * Used to start a session at end-of-file so pre-existing content is never
+ * counted as new usage. See the SessionStart handler in `bridge.ts`.
+ */
+export function transcriptSize(path: string | undefined): number {
+  if (!path) return 0;
+  try {
+    return statSync(path).size;
+  } catch {
+    return 0;
+  }
+}
+
 /** Cap for the backwards model scan — a few transcript lines, not the session. */
 const MODEL_SCAN_BYTES = 64 * 1024;
 

@@ -81,6 +81,7 @@ const sequence = [
   {
     ...base,
     hook_event_name: "SessionStart",
+    source: "startup",
     model: { provider: "anthropic", id: "claude-opus-5" },
   },
   { ...base, hook_event_name: "UserPromptSubmit", prompt: "add a dev replay harness" },
@@ -108,6 +109,31 @@ const sequence = [
   // re-counting the tokens already reported by the first Stop.
   { ...base, hook_event_name: "UserPromptSubmit", prompt: "now document it" },
   { ...base, hook_event_name: "Stop" },
+
+  // Compaction raises SessionStart again, mid-session, under the same session
+  // id and on the same append-only transcript. It must neither re-count the
+  // two turns above nor increment pi.session.count.
+  {
+    ...base,
+    hook_event_name: "SessionStart",
+    source: "compact",
+    model: { provider: "anthropic", id: "claude-opus-5" },
+  },
+  { ...base, hook_event_name: "UserPromptSubmit", prompt: "keep going" },
+  { ...base, hook_event_name: "Stop" },
+  { ...base, hook_event_name: "SessionEnd" },
+
+  // `claude --resume` reopens a transcript that already holds every turn
+  // above. This is a genuinely new session, so it counts — but its first Stop
+  // must report one turn's tokens, not the whole file's.
+  {
+    ...base,
+    hook_event_name: "SessionStart",
+    source: "resume",
+    model: { provider: "anthropic", id: "claude-opus-5" },
+  },
+  { ...base, hook_event_name: "UserPromptSubmit", prompt: "one more thing" },
+  { ...base, hook_event_name: "Stop" },
   { ...base, hook_event_name: "SessionEnd" },
 ];
 
@@ -132,13 +158,15 @@ try {
     await send(event);
   }
   console.log("\nExpected totals for this run:");
-  console.log("  pi.session.count      1");
-  console.log("  pi.prompt.count       2");
+  console.log("  pi.session.count      2   (startup + resume; compact is not a new session)");
+  console.log("  pi.prompt.count       4");
   console.log("  pi.tool_call.count    3   (Read, Edit, Bash)");
   console.log("  pi.tool_result.count  3   (2 success, 1 failure)");
-  console.log("  pi.turn.count         2");
-  console.log("  pi.token.usage        input=2400 output=680 cache_read=16000 cache_write=1000");
-  console.log("  pi.session.duration   1 histogram observation");
+  console.log("  pi.turn.count         4");
+  console.log("  pi.token.usage        input=4800 output=1360 cache_read=32000 cache_write=2000");
+  console.log("  pi.session.duration   2 histogram observations");
+  console.log("\n  Token totals are 4 turns' worth. Anything higher means a");
+  console.log("  SessionStart rewound the transcript offset and re-counted.");
   console.log("\nCheck the result with:");
   console.log("  docker compose -f stack/docker-compose.dev.yml logs -f otel-collector");
   console.log("  npm run dev:metrics");
