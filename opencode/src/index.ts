@@ -63,7 +63,7 @@ export default Plugin.define({
       }),
       readers,
     });
-    const collector = createTelemetryCollector(provider.getMeter("com.pi.otlp"));
+    const collector = createTelemetryCollector(provider.getMeter("com.pi.otlp"), "oc");
     const toolNames = new Map<string, string>();
     const activeSessions = new Set<string>();
     const controller = new AbortController();

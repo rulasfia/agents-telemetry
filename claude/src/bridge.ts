@@ -25,7 +25,7 @@ import {
 } from "fs";
 import { homedir } from "os";
 import { join } from "path";
-import { promptLengthBucket } from "../../pi/src/attributes.js";
+import { normalizeToolName, promptLengthBucket } from "../../pi/src/attributes.js";
 import { getConfig, type OtlpConfig } from "../../pi/src/config.js";
 import {
   readLastModel,
@@ -330,8 +330,9 @@ async function main() {
     case "PostToolUse":
     case "PostToolUseFailure": {
       persist = false; // Tool events never mutate state, so they can't race.
-      const toolName = event.tool_name as string | undefined;
-      if (!toolName) break;
+      const nativeToolName = event.tool_name as string | undefined;
+      if (!nativeToolName) break;
+      const toolName = normalizeToolName("cc", nativeToolName);
       const success = eventName === "PostToolUse";
 
       // SessionStart reports no model, so the first turn's events would be

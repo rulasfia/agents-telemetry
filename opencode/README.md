@@ -32,6 +32,9 @@ The plugin uses the public V2 `ctx.event.subscribe()` API. Its event mapping is:
 | `session.tool.input.started` / terminal event | tool call, result, and duration |
 | `session.model.selected` | provider and model labels for subsequent metrics |
 
+Tool names are emitted as lowercase snake case with the `oc_` harness prefix
+(for example, `oc_read`), matching the shared tool-label convention.
+
 OpenCode exposes a total cost per model step, but not the per-token-type cost
 breakdown required by the existing `pi.cost.usage` metric. The plugin therefore
 does not emit cost metrics rather than assigning the total to an incorrect type.

@@ -78,7 +78,8 @@ state file and the transcript on disk.
 |  read:   readLastModel() scans the transcript tail, but only   |
 |          while the model is still "unknown"                    |
 |  emit:   pi.tool_call.count, pi.tool_result.count,             |
-|          pi.tool.duration     (from the payload's duration_ms) |
+|          pi.tool.duration     (tool.name = cc_* snake case;    |
+|                                duration from duration_ms)      |
 +----------------------------------------------------------------+
       |
       v

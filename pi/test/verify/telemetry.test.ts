@@ -56,7 +56,7 @@ describe("TelemetryCollector", () => {
 
   beforeEach(() => {
     const mock = createMockMeter();
-    collector = createTelemetryCollector(mock.meter);
+    collector = createTelemetryCollector(mock.meter, "pi");
     counters = mock.counters;
     histograms = mock.histograms;
   });
@@ -106,7 +106,7 @@ describe("TelemetryCollector", () => {
       const counter = counters.get("pi.tool_call.count");
       expect(counter?.add).toHaveBeenCalledWith(1, {
         ...baseAttrs("sess-123"),
-        "tool.name": "Bash",
+        "tool.name": "pi_bash",
       });
     });
   });
@@ -119,7 +119,7 @@ describe("TelemetryCollector", () => {
       const counter = counters.get("pi.tool_result.count");
       expect(counter?.add).toHaveBeenCalledWith(1, {
         ...baseAttrs("sess-123"),
-        "tool.name": "Read",
+        "tool.name": "pi_read",
         success: "true",
       });
     });
@@ -131,7 +131,7 @@ describe("TelemetryCollector", () => {
       const counter = counters.get("pi.tool_result.count");
       expect(counter?.add).toHaveBeenCalledWith(1, {
         ...baseAttrs("sess-123"),
-        "tool.name": "Bash",
+        "tool.name": "pi_bash",
         success: "false",
       });
     });
@@ -336,7 +336,7 @@ describe("TelemetryCollector", () => {
       const histogram = histograms.get("pi.tool.duration");
       expect(histogram?.record).toHaveBeenCalledWith(0.2, {
         ...baseAttrs("sess-123"),
-        "tool.name": "Bash",
+        "tool.name": "pi_bash",
         success: "true",
       });
     });
@@ -412,13 +412,13 @@ describe("TelemetryCollector", () => {
       // Glob: 1150 - 1050 = 100ms = 0.1s
       expect(histogram?.record).toHaveBeenCalledWith(0.1, {
         ...baseAttrs("sess-123"),
-        "tool.name": "Glob",
+        "tool.name": "pi_glob",
         success: "true",
       });
       // Read: 1200 - 1000 = 200ms = 0.2s
       expect(histogram?.record).toHaveBeenCalledWith(0.2, {
         ...baseAttrs("sess-123"),
-        "tool.name": "Read",
+        "tool.name": "pi_read",
         success: "true",
       });
     });
@@ -439,12 +439,12 @@ describe("TelemetryCollector", () => {
       const histogram = histograms.get("pi.tool.duration");
       expect(histogram?.record).toHaveBeenCalledWith(0.1, {
         ...baseAttrs("sess-123"),
-        "tool.name": "Read",
+        "tool.name": "pi_read",
         success: "true",
       });
       expect(histogram?.record).toHaveBeenCalledWith(0.2, {
         ...baseAttrs("sess-123"),
-        "tool.name": "Read",
+        "tool.name": "pi_read",
         success: "true",
       });
     });

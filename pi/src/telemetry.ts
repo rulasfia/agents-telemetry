@@ -1,5 +1,9 @@
 import type { Meter, Counter, Histogram } from "@opentelemetry/api";
-import { promptLengthBucket } from "./attributes.js";
+import {
+  normalizeToolName,
+  promptLengthBucket,
+  type ToolHarness,
+} from "./attributes.js";
 
 export interface UsageData {
   input: number;
@@ -85,7 +89,10 @@ interface Histograms {
   toolDuration: Histogram;
 }
 
-export function createTelemetryCollector(meter: Meter): TelemetryCollector {
+export function createTelemetryCollector(
+  meter: Meter,
+  toolHarness: ToolHarness,
+): TelemetryCollector {
   const counters: Counters = {
     sessionCounter: meter.createCounter("pi.session.count", {
       description: "Count of pi coding sessions started",
@@ -248,10 +255,11 @@ export function createTelemetryCollector(meter: Meter): TelemetryCollector {
     recordToolCall(attrs) {
       const sessionId = attrs.sessionId ?? defaultSessionId;
       const session = getSession(sessionId);
-      session.toolStartTimes.set(attrs.toolCallId ?? attrs.toolName, now());
+      const toolName = normalizeToolName(toolHarness, attrs.toolName);
+      session.toolStartTimes.set(attrs.toolCallId ?? toolName, now());
       counters.toolCallCounter.add(1, {
         ...getBaseAttrs(sessionId),
-        "tool.name": attrs.toolName,
+        "tool.name": toolName,
       });
       status.tools++;
     },
@@ -259,14 +267,15 @@ export function createTelemetryCollector(meter: Meter): TelemetryCollector {
     recordToolResult(attrs) {
       const sessionId = attrs.sessionId ?? defaultSessionId;
       const session = getSession(sessionId);
-      const toolKey = attrs.toolCallId ?? attrs.toolName;
+      const toolName = normalizeToolName(toolHarness, attrs.toolName);
+      const toolKey = attrs.toolCallId ?? toolName;
       const startTime = session.toolStartTimes.get(toolKey);
       if (startTime !== undefined) {
         const durationMs = now() - startTime;
         const durationS = durationMs / 1000;
         histograms.toolDuration.record(durationS, {
           ...getBaseAttrs(sessionId),
-          "tool.name": attrs.toolName,
+          "tool.name": toolName,
           success: String(attrs.success),
         });
         status.durations.tool.count++;
@@ -276,7 +285,7 @@ export function createTelemetryCollector(meter: Meter): TelemetryCollector {
       }
       counters.toolResultCounter.add(1, {
         ...getBaseAttrs(sessionId),
-        "tool.name": attrs.toolName,
+        "tool.name": toolName,
         success: String(attrs.success),
       });
     },

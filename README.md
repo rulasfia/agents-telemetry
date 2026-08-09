@@ -246,6 +246,11 @@ exports cumulative from a single long-lived process.
 ### Counters
 
 All counters include base attributes: `session.id`, `provider`, `model`.
+Tool metrics normalize `tool.name` to lowercase snake case with a two-letter
+harness prefix: `pi_read`, `cc_read`, or `oc_read`. This avoids ambiguous pairs
+such as pi's `read` and Claude Code's `Read`; custom and MCP tool names follow
+the same rule. Existing stored series keep their old labels, so queries spanning
+an upgrade may show both forms until the backend's retention window expires.
 
 > `session.id` is high-cardinality. Drop it in the collector before Prometheus for long-lived aggregate metrics.
 
@@ -253,8 +258,8 @@ All counters include base attributes: `session.id`, `provider`, `model`.
 |--------|-------------|----------------------|
 | `pi.session.count` | Sessions started | — |
 | `pi.turn.count` | Agent turns (tool-calling loops) | — |
-| `pi.tool_call.count` | Tool invocations | `tool.name` |
-| `pi.tool_result.count` | Tool completions | `tool.name`, `success` |
+| `pi.tool_call.count` | Tool invocations | normalized `tool.name` (`pi_*`/`cc_*`/`oc_*`) |
+| `pi.tool_result.count` | Tool completions | normalized `tool.name`, `success` |
 | `pi.prompt.count` | User prompts | `prompt.length.bucket` (`0-100`/`100-1k`/`1k-10k`/`10k+`) |
 | `pi.token.usage` | Token consumption | `type` (input/output/cache_read/cache_write) |
 | `pi.cost.usage` | Cost in USD | `type` (input/output/cache_read/cache_write) |
@@ -267,7 +272,7 @@ All histograms include base attributes: `session.id`, `provider`, `model`.
 |--------|-------------|------|----------------------|
 | `pi.session.duration` | Session duration | seconds | — |
 | `pi.turn.duration` | Turn duration | seconds | — |
-| `pi.tool.duration` | Tool execution duration | seconds | `tool.name`, `success` |
+| `pi.tool.duration` | Tool execution duration | seconds | normalized `tool.name`, `success` |
 
 ## Commands
 

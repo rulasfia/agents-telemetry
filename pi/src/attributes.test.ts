@@ -1,5 +1,24 @@
 import { describe, it, expect } from "vitest";
-import { promptLengthBucket } from "./attributes.js";
+import { normalizeToolName, promptLengthBucket } from "./attributes.js";
+
+describe("normalizeToolName", () => {
+  it("prefixes equivalent harness tools consistently", () => {
+    expect(normalizeToolName("cc", "Read")).toBe("cc_read");
+    expect(normalizeToolName("pi", "read")).toBe("pi_read");
+    expect(normalizeToolName("oc", "READ")).toBe("oc_read");
+  });
+
+  it("normalizes camel case and punctuation to snake case", () => {
+    expect(normalizeToolName("cc", "ToolSearch")).toBe("cc_tool_search");
+    expect(normalizeToolName("cc", "mcp__chrome-devtools__take_screenshot"))
+      .toBe("cc_mcp_chrome_devtools_take_screenshot");
+  });
+
+  it("uses an explicit fallback for blank or punctuation-only names", () => {
+    expect(normalizeToolName("oc", "  ")).toBe("oc_unknown");
+    expect(normalizeToolName("pi", "---")).toBe("pi_unknown");
+  });
+});
 
 describe("promptLengthBucket", () => {
   it("buckets by magnitude with lower-inclusive boundaries", () => {

@@ -149,7 +149,8 @@ not need to parse a transcript and **does** emit `pi.cost.usage`.
 Every instrument carries `session.id`, `provider`, `model` (`getBaseAttrs()`),
 plus:
 
-- `tool.name` on the tool metrics, and `success` (a stringified boolean) on
+- normalized `tool.name` (`pi_` plus the native name in lowercase snake case,
+  such as `pi_read`) on tool metrics, and `success` (a stringified boolean) on
   `pi.tool_result.count` / `pi.tool.duration`;
 - `type` (`input` / `output` / `cache_read` / `cache_write`) on
   `pi.token.usage` and `pi.cost.usage`;

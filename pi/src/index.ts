@@ -112,7 +112,7 @@ export default function (pi: ExtensionAPI) {
   metrics.setGlobalMeterProvider(meterProvider);
 
   const meter = meterProvider.getMeter("com.pi.otlp");
-  collector = createTelemetryCollector(meter);
+  collector = createTelemetryCollector(meter, "pi");
 
   // Session lifecycle events
   pi.on("session_start", async (_event, ctx) => {
