@@ -8,9 +8,13 @@ All emitters use the **same `pi.*` metric names**, so one dashboard covers them 
 
 ## Installation
 
-Each agent installs with a single command — no clone, no build step.
+Set up telemetry in order: install one or more harness integrations, start the
+self-hosted stack, then open Grafana. The three integrations are independent;
+install only the ones you use.
 
-### pi-coding-agent
+### 1. Install A Harness Integration
+
+#### pi-coding-agent
 
 ```bash
 pi install git:github.com/rulasfia/agents-telemetry
@@ -26,7 +30,7 @@ pi install /absolute/path/to/agents-telemetry
 
 See [`pi/README.md`](./pi/README.md) for how the extension works internally.
 
-### Claude Code
+#### Claude Code
 
 Add the marketplace, then install the plugin:
 
@@ -46,11 +50,13 @@ claude --plugin-dir "$(pwd)/claude"
 
 > **Note:** `--plugin-dir` must point at the `claude/` directory, not the repo root. `~/.claude/skills/` is for `SKILL.md` skills and does not load a plugin's hooks.
 
-> Your existing Grafana dashboards work unchanged, but the Claude Code plugin needs one collector-side change the pi extension does not — see [Delta temporality](#delta-temporality).
+> The included self-hosted stack handles Claude Code's delta temporality. If you
+> use another collector, apply the [Delta temporality](#delta-temporality)
+> configuration to it.
 
 See [`claude/README.md`](./claude/README.md) for how the hook bridge works internally.
 
-### OpenCode V2
+#### OpenCode V2
 
 Add the package to the V2 `plugins` array in `opencode.json` or
 `.opencode/opencode.json`:
@@ -73,22 +79,53 @@ For a local checkout, point the plugin entry at the repository root:
 The OpenCode V2 plugin API is beta. This package targets its `/v2` plugin API;
 verify that it loaded with `opencode2 api get /api/plugin`.
 
-### Next step
+### 2. Start The Self-Hosted Stack
 
-Neither emitter does anything until you enable it. At minimum:
+The included Docker Compose stack runs an OpenTelemetry Collector, Prometheus,
+and Grafana. It already converts Claude Code's delta metrics to cumulative
+metrics for Prometheus and provisions this dashboard.
 
 ```bash
-export ATEL_PI=1              # turn on the pi extension
-export ATEL_CLAUDE_CODE=1     # turn on the Claude Code plugin
-export ATEL_OPENCODE=1        # turn on the OpenCode V2 plugin
-export ATEL_ENDPOINT=http://localhost:4318
+git clone https://github.com/rulasfia/agents-telemetry.git
+cd agents-telemetry/stack
+cp .env.example .env
+# Edit .env: set a long Grafana password and, when needed, the LAN/VPN bind address.
+docker compose -f docker-compose.homeserver.yml up -d
 ```
 
-See [Configuration](#configuration) for the full set.
+Point each installed harness at the machine running the stack, then enable the
+ones you installed. Use `localhost` only when the harness and stack share a
+machine; otherwise use its LAN or VPN address.
+
+```bash
+export ATEL_ENDPOINT=http://telemetry-host:4318
+export ATEL_PI=1              # pi-coding-agent
+export ATEL_CLAUDE_CODE=1     # Claude Code
+export ATEL_OPENCODE=1        # OpenCode V2
+```
+
+The collector's OTLP endpoint must be reachable only from trusted LAN or VPN
+clients. Do not expose port `4318` to the public internet.
+
+### 3. Open The Dashboard
+
+Open `http://localhost:3000` on the stack host and sign in with
+`GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD` from `stack/.env`. The
+provisioned **Pi Coding Agent - OTLP Metrics** dashboard shows every enabled
+harness, with `service_name` separating their data.
+
+If Grafana is on a remote host, use its VPN or reverse-proxy URL, or tunnel it:
+
+```bash
+ssh -L 3000:localhost:3000 telemetry-host
+```
+
+Then open `http://localhost:3000` locally. See [Configuration](#configuration)
+for exporters, headers, and other options.
 
 ## Configuration
 
-Everything is configured through one `ATEL_*` namespace, shared by both agents.
+Everything is configured through one `ATEL_*` namespace, shared by all harnesses.
 Only enablement is per-agent, so you can run telemetry for one without the other.
 
 ```bash
@@ -185,7 +222,7 @@ on the collector to convert them, because a cumulative counter would restart at
 zero on every hook and Prometheus would see a permanently flat series.
 
 Add the `deltatocumulative` processor to your collector's metrics pipeline
-(already configured in [`deploy/`](./deploy) and [`demo/`](./demo)):
+(already configured in [`stack/otel-collector.yaml`](./stack/otel-collector.yaml)):
 
 ```yaml
 processors:
