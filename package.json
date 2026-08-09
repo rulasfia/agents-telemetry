@@ -1,6 +1,6 @@
 {
   "name": "@rulasfia/agents-telemetry",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "OpenTelemetry metrics and events plugins for coding agents",
   "license": "MIT",
   "author": "rulasfia",
