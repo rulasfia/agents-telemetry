@@ -15,7 +15,7 @@ import { getConfig } from "../../pi/src/config.js";
 import { createTelemetryCollector } from "../../pi/src/telemetry.js";
 
 const SERVICE_NAME = "pi-otlp-opencode";
-const VERSION = "0.5.0";
+const VERSION = "0.6.0";
 
 export default Plugin.define({
   id: "rulasfia.agents-telemetry",

@@ -1,7 +1,7 @@
 {
   "name": "pi-otlp",
   "displayName": "pi OTLP Telemetry",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Emit pi-compatible OTLP metrics from Claude Code sessions",
   "author": {
     "name": "rulasfia",
