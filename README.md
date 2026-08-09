@@ -1,10 +1,10 @@
 # agents-telemetry
 
-OpenTelemetry metrics for [pi-coding-agent](https://github.com/badlogic/pi-mono) **and** [Claude Code](https://claude.com/claude-code). Track sessions, turns, tool usage, token consumption, costs, and performance timing.
+OpenTelemetry metrics for [pi-coding-agent](https://github.com/badlogic/pi-mono), [Claude Code](https://claude.com/claude-code), and [OpenCode V2](https://opencode.ai/v2). Track sessions, turns, tool usage, token consumption, costs, and performance timing.
 
 <img width="1055" height="856" alt="Screenshot 2026-02-12 at 4 14 58 PM" src="https://github.com/user-attachments/assets/a6a377de-f659-4b8c-8f40-8c9038eb92a6" />
 
-Both agents emit the **same `pi.*` metric names**, so one dashboard covers both. They are told apart by `service_name`: `pi-coding-agent` vs `pi-otlp-claude`.
+All emitters use the **same `pi.*` metric names**, so one dashboard covers them all. They are told apart by `service_name`: `pi-coding-agent`, `pi-otlp-claude`, and `pi-otlp-opencode`.
 
 ## Installation
 
@@ -50,6 +50,29 @@ claude --plugin-dir "$(pwd)/claude"
 
 See [`claude/README.md`](./claude/README.md) for how the hook bridge works internally.
 
+### OpenCode V2
+
+Add the package to the V2 `plugins` array in `opencode.json` or
+`.opencode/opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugins": ["@rulasfia/agents-telemetry"]
+}
+```
+
+For a local checkout, point the plugin entry at the repository root:
+
+```json
+{
+  "plugins": ["./opencode/src/index.ts"]
+}
+```
+
+The OpenCode V2 plugin API is beta. This package targets its `/v2` plugin API;
+verify that it loaded with `opencode2 api get /api/plugin`.
+
 ### Next step
 
 Neither emitter does anything until you enable it. At minimum:
@@ -57,6 +80,7 @@ Neither emitter does anything until you enable it. At minimum:
 ```bash
 export ATEL_PI=1              # turn on the pi extension
 export ATEL_CLAUDE_CODE=1     # turn on the Claude Code plugin
+export ATEL_OPENCODE=1        # turn on the OpenCode V2 plugin
 export ATEL_ENDPOINT=http://localhost:4318
 ```
 
@@ -71,6 +95,7 @@ Only enablement is per-agent, so you can run telemetry for one without the other
 # Enablement — set the one(s) you want. Nothing is emitted otherwise.
 export ATEL_PI=1
 export ATEL_CLAUDE_CODE=1
+export ATEL_OPENCODE=1
 
 # Base endpoint: /v1/metrics is appended.
 export ATEL_ENDPOINT=http://homeserver:4318
@@ -99,6 +124,7 @@ export ATEL_DEBUG=1
 |---|---|---|
 | `ATEL_PI` | off | `1` enables the pi extension |
 | `ATEL_CLAUDE_CODE` | off | `1` enables the Claude Code plugin |
+| `ATEL_OPENCODE` | off | `1` enables the OpenCode V2 plugin |
 | `ATEL_ENDPOINT` | `http://localhost:4318` | base URL; `/v1/metrics` is appended |
 | `ATEL_METRICS_ENDPOINT` | — | used verbatim; wins over `ATEL_ENDPOINT` |
 | `ATEL_EXPORTERS` | `otlp` | comma-separated: `otlp`, `console` |
@@ -178,7 +204,7 @@ exports cumulative from a single long-lived process.
 
 ## Metrics
 
-> **Claude Code note:** The plugin emits the same metric names so dashboards work unchanged, with one exception. Cost (`pi.cost.usage`) is not available from Claude Code hook events — use Claude Code's native `claude_code.cost.usage` metric if you need cost tracking there. Token usage *is* reported: the `Stop` hook carries no usage payload, so the plugin reads it incrementally from the session transcript, summing every assistant message in the turn.
+> **Claude Code and OpenCode note:** Both plugins emit the same metric names so dashboards work unchanged, with one exception. Cost (`pi.cost.usage`) is not available as a per-token-type breakdown from their event payloads. OpenCode does expose a total per-step cost, but it cannot be truthfully labelled as `input`, `output`, `cache_read`, or `cache_write`, so this plugin does not emit it. Claude Code users can use its native `claude_code.cost.usage` metric. Token usage is reported by both.
 
 ### Counters
 

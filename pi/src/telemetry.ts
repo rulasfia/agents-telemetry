@@ -7,7 +7,7 @@ export interface UsageData {
   cacheRead: number;
   cacheWrite: number;
   totalTokens: number;
-  cost: {
+  cost?: {
     input: number;
     output: number;
     cacheRead: number;
@@ -18,19 +18,20 @@ export interface UsageData {
 
 export interface TelemetryCollector {
   recordSessionStart(attrs: { sessionId: string; provider?: string; model?: string }): void;
-  recordSessionEnd(): void;
-  recordTurnStart(): void;
-  recordTurnEnd(): void;
-  recordToolCall(attrs: { toolCallId?: string; toolName: string }): void;
+  recordSessionEnd(sessionId?: string): void;
+  recordTurnStart(sessionId?: string): void;
+  recordTurnEnd(sessionId?: string): void;
+  recordToolCall(attrs: { toolCallId?: string; toolName: string; sessionId?: string }): void;
   recordToolResult(attrs: {
     toolCallId?: string;
     toolName: string;
     success: boolean;
+    sessionId?: string;
   }): void;
-  recordUserPrompt(attrs: { promptLength: number }): void;
-  recordUsage(usage: UsageData): void;
+  recordUserPrompt(attrs: { promptLength: number; sessionId?: string }): void;
+  recordUsage(usage: UsageData, sessionId?: string): void;
   /** Update provider/model (e.g., when user switches models mid-session) */
-  setProviderModel(provider: string, model: string): void;
+  setProviderModel(provider: string, model: string, sessionId?: string): void;
   getStatus(): TelemetryStatus;
   /** For testing: allows injecting a custom time source */
   _setTimeSource?(fn: () => number): void;
@@ -157,123 +158,158 @@ export function createTelemetryCollector(meter: Meter): TelemetryCollector {
     },
   };
 
-  let currentSessionId = "";
-  let currentProvider = "unknown";
-  let currentModel = "unknown";
+  interface SessionState {
+    provider: string;
+    model: string;
+    sessionStartTime: number | null;
+    turnStartTime: number | null;
+    toolStartTimes: Map<string, number>;
+  }
 
-  // Timing state
-  let sessionStartTime: number | null = null;
-  let turnStartTime: number | null = null;
-  const toolStartTimes = new Map<string, number>();
+  const sessions = new Map<string, SessionState>();
+  let defaultSessionId = "";
+  const getSession = (sessionId: string) => {
+    let session = sessions.get(sessionId);
+    if (!session) {
+      session = {
+        provider: "unknown",
+        model: "unknown",
+        sessionStartTime: null,
+        turnStartTime: null,
+        toolStartTimes: new Map(),
+      };
+      sessions.set(sessionId, session);
+    }
+    return session;
+  };
 
   // Time source (injectable for testing)
   let now = () => Date.now();
 
   // Helper to get common attributes including provider/model
-  const getBaseAttrs = () => ({
-    "session.id": currentSessionId,
-    "provider": currentProvider,
-    "model": currentModel,
-  });
+  const getBaseAttrs = (sessionId: string) => {
+    const session = getSession(sessionId);
+    return {
+      "session.id": sessionId,
+      provider: session.provider,
+      model: session.model,
+    };
+  };
 
   return {
     recordSessionStart(attrs) {
-      currentSessionId = attrs.sessionId;
-      currentProvider = attrs.provider ?? "unknown";
-      currentModel = attrs.model ?? "unknown";
-      sessionStartTime = now();
-      counters.sessionCounter.add(1, getBaseAttrs());
+      defaultSessionId = attrs.sessionId;
+      const session = getSession(attrs.sessionId);
+      session.provider = attrs.provider ?? "unknown";
+      session.model = attrs.model ?? "unknown";
+      session.sessionStartTime = now();
+      counters.sessionCounter.add(1, getBaseAttrs(attrs.sessionId));
       status.sessions++;
     },
 
-    recordSessionEnd() {
-      if (sessionStartTime !== null) {
-        const durationMs = now() - sessionStartTime;
+    recordSessionEnd(sessionId) {
+      const resolvedSessionId = sessionId ?? defaultSessionId;
+      const session = getSession(resolvedSessionId);
+      if (session.sessionStartTime !== null) {
+        const durationMs = now() - session.sessionStartTime;
         const durationS = durationMs / 1000;
-        histograms.sessionDuration.record(durationS, getBaseAttrs());
+        histograms.sessionDuration.record(durationS, getBaseAttrs(resolvedSessionId));
         status.durations.session.count++;
         status.durations.session.totalMs += durationMs;
         status.durations.session.lastMs = durationMs;
-        sessionStartTime = null;
+        session.sessionStartTime = null;
       }
-      currentSessionId = "";
+      sessions.delete(resolvedSessionId);
+      if (resolvedSessionId === defaultSessionId) defaultSessionId = "";
     },
 
-    recordTurnStart() {
-      turnStartTime = now();
-      counters.turnCounter.add(1, getBaseAttrs());
+    recordTurnStart(sessionId) {
+      const resolvedSessionId = sessionId ?? defaultSessionId;
+      const session = getSession(resolvedSessionId);
+      session.turnStartTime = now();
+      counters.turnCounter.add(1, getBaseAttrs(resolvedSessionId));
       status.turns++;
     },
 
-    recordTurnEnd() {
-      if (turnStartTime !== null) {
-        const durationMs = now() - turnStartTime;
+    recordTurnEnd(sessionId) {
+      const resolvedSessionId = sessionId ?? defaultSessionId;
+      const session = getSession(resolvedSessionId);
+      if (session.turnStartTime !== null) {
+        const durationMs = now() - session.turnStartTime;
         const durationS = durationMs / 1000;
-        histograms.turnDuration.record(durationS, getBaseAttrs());
+        histograms.turnDuration.record(durationS, getBaseAttrs(resolvedSessionId));
         status.durations.turn.count++;
         status.durations.turn.totalMs += durationMs;
         status.durations.turn.lastMs = durationMs;
-        turnStartTime = null;
+        session.turnStartTime = null;
       }
     },
 
     recordToolCall(attrs) {
-      toolStartTimes.set(attrs.toolCallId ?? attrs.toolName, now());
+      const sessionId = attrs.sessionId ?? defaultSessionId;
+      const session = getSession(sessionId);
+      session.toolStartTimes.set(attrs.toolCallId ?? attrs.toolName, now());
       counters.toolCallCounter.add(1, {
-        ...getBaseAttrs(),
+        ...getBaseAttrs(sessionId),
         "tool.name": attrs.toolName,
       });
       status.tools++;
     },
 
     recordToolResult(attrs) {
+      const sessionId = attrs.sessionId ?? defaultSessionId;
+      const session = getSession(sessionId);
       const toolKey = attrs.toolCallId ?? attrs.toolName;
-      const startTime = toolStartTimes.get(toolKey);
+      const startTime = session.toolStartTimes.get(toolKey);
       if (startTime !== undefined) {
         const durationMs = now() - startTime;
         const durationS = durationMs / 1000;
         histograms.toolDuration.record(durationS, {
-          ...getBaseAttrs(),
+          ...getBaseAttrs(sessionId),
           "tool.name": attrs.toolName,
           success: String(attrs.success),
         });
         status.durations.tool.count++;
         status.durations.tool.totalMs += durationMs;
         status.durations.tool.lastMs = durationMs;
-        toolStartTimes.delete(toolKey);
+        session.toolStartTimes.delete(toolKey);
       }
       counters.toolResultCounter.add(1, {
-        ...getBaseAttrs(),
+        ...getBaseAttrs(sessionId),
         "tool.name": attrs.toolName,
         success: String(attrs.success),
       });
     },
 
     recordUserPrompt(attrs) {
+      const sessionId = attrs.sessionId ?? defaultSessionId;
       counters.promptCounter.add(1, {
-        ...getBaseAttrs(),
+        ...getBaseAttrs(sessionId),
         "prompt.length.bucket": promptLengthBucket(attrs.promptLength),
       });
       status.prompts++;
     },
 
-    setProviderModel(provider: string, model: string) {
-      currentProvider = provider;
-      currentModel = model;
+    setProviderModel(provider: string, model: string, sessionId) {
+      const session = getSession(sessionId ?? defaultSessionId);
+      session.provider = provider;
+      session.model = model;
     },
 
-    recordUsage(usage) {
-      const baseAttrs = getBaseAttrs();
+    recordUsage(usage, sessionId) {
+      const baseAttrs = getBaseAttrs(sessionId ?? defaultSessionId);
 
       counters.tokenCounter.add(usage.input, { ...baseAttrs, type: "input" });
       counters.tokenCounter.add(usage.output, { ...baseAttrs, type: "output" });
       counters.tokenCounter.add(usage.cacheRead, { ...baseAttrs, type: "cache_read" });
       counters.tokenCounter.add(usage.cacheWrite, { ...baseAttrs, type: "cache_write" });
 
-      counters.costCounter.add(usage.cost.input, { ...baseAttrs, type: "input" });
-      counters.costCounter.add(usage.cost.output, { ...baseAttrs, type: "output" });
-      counters.costCounter.add(usage.cost.cacheRead, { ...baseAttrs, type: "cache_read" });
-      counters.costCounter.add(usage.cost.cacheWrite, { ...baseAttrs, type: "cache_write" });
+      if (usage.cost) {
+        counters.costCounter.add(usage.cost.input, { ...baseAttrs, type: "input" });
+        counters.costCounter.add(usage.cost.output, { ...baseAttrs, type: "output" });
+        counters.costCounter.add(usage.cost.cacheRead, { ...baseAttrs, type: "cache_read" });
+        counters.costCounter.add(usage.cost.cacheWrite, { ...baseAttrs, type: "cache_write" });
+      }
 
       status.tokens.input += usage.input;
       status.tokens.output += usage.output;
@@ -281,11 +317,13 @@ export function createTelemetryCollector(meter: Meter): TelemetryCollector {
       status.tokens.cacheWrite += usage.cacheWrite;
       status.tokens.total += usage.totalTokens;
 
-      status.cost.input += usage.cost.input;
-      status.cost.output += usage.cost.output;
-      status.cost.cacheRead += usage.cost.cacheRead;
-      status.cost.cacheWrite += usage.cost.cacheWrite;
-      status.cost.total += usage.cost.total;
+      if (usage.cost) {
+        status.cost.input += usage.cost.input;
+        status.cost.output += usage.cost.output;
+        status.cost.cacheRead += usage.cost.cacheRead;
+        status.cost.cacheWrite += usage.cost.cacheWrite;
+        status.cost.total += usage.cost.total;
+      }
     },
 
     getStatus() {

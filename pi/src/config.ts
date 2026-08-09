@@ -11,12 +11,13 @@
  */
 
 /** Which emitter is asking — selects the enable variable. */
-export type TelemetrySource = "pi" | "claude-code";
+export type TelemetrySource = "pi" | "claude-code" | "opencode";
 
 /** The enable flag is per-emitter; everything else is shared. */
 const ENABLE_VAR: Record<TelemetrySource, string> = {
   pi: "ATEL_PI",
   "claude-code": "ATEL_CLAUDE_CODE",
+  opencode: "ATEL_OPENCODE",
 };
 
 export interface OtlpConfig {

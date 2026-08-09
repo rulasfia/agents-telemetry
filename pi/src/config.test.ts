@@ -25,6 +25,7 @@ describe("getConfig", () => {
   it("returns disabled by default", () => {
     expect(getConfig("pi").enabled).toBe(false);
     expect(getConfig("claude-code").enabled).toBe(false);
+    expect(getConfig("opencode").enabled).toBe(false);
   });
 
   it("enables the pi extension with ATEL_PI=1", () => {
@@ -35,6 +36,11 @@ describe("getConfig", () => {
   it("enables the Claude Code bridge with ATEL_CLAUDE_CODE=1", () => {
     process.env.ATEL_CLAUDE_CODE = "1";
     expect(getConfig("claude-code").enabled).toBe(true);
+  });
+
+  it("enables the OpenCode plugin with ATEL_OPENCODE=1", () => {
+    process.env.ATEL_OPENCODE = "1";
+    expect(getConfig("opencode").enabled).toBe(true);
   });
 
   it("keeps enablement independent per emitter", () => {
