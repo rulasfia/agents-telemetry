@@ -1,5 +1,9 @@
 # Plans
 
+For current metric semantics, naming conventions, and dashboard queries, see
+[the telemetry reference](../telemetry.md). These documents are historical
+review findings and implementation plans.
+
 Findings from the 2026-08-03 review of the dual-source (pi extension + Claude Code
 plugin) OTLP setup. The goal — both emitters reporting the same `pi.*` metrics into
 one Grafana dashboard — is architecturally sound and working; these plans cover the
