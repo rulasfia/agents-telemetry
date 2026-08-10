@@ -29,6 +29,7 @@ The plugin uses the public V2 `ctx.event.subscribe()` API. Its event mapping is:
 | `session.input.admitted` | prompt count |
 | `session.execution.started` / terminal event | turn count / turn duration |
 | `session.step.ended` | token usage |
+| `session.skill.activated` | skill invocation (`skill.name` normalized to `oc_*`) |
 | `session.tool.input.started` / terminal event | tool call, result, and duration |
 | `session.model.selected` | provider and model labels for subsequent metrics |
 

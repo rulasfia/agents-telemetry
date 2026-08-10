@@ -135,9 +135,9 @@ These are the event names `src/index.ts` actually subscribes to.
 | `session_shutdown` | `recordSessionEnd` then `shutdown()` | `pi.session.duration`; flushes and tears down the `MeterProvider` |
 | `turn_start` | `recordTurnStart` | `pi.turn.count` +1; stores turn start time |
 | `turn_end` | `recordTurnEnd` + `recordUsage` | `pi.turn.duration`; `pi.token.usage` and `pi.cost.usage` (4 `type`s each) when the message carries `usage` |
-| `tool_execution_start` | `recordToolCall` | `pi.tool_call.count` +1; stores tool start time |
+| `tool_execution_start` | `recordToolCall`; `recordSkillInvocation` for a `read` of `<skill>/SKILL.md` | `pi.tool_call.count` +1; `pi.skill.invocation.count` +1 for model-loaded skills; stores tool start time |
 | `tool_execution_end` | `recordToolResult` | `pi.tool_result.count` +1; `pi.tool.duration` |
-| `input` | `recordUserPrompt` | `pi.prompt.count` +1 |
+| `input` | `recordUserPrompt`; `recordSkillInvocation` for `/skill:<name>` | `pi.prompt.count` +1; `pi.skill.invocation.count` +1 for directly invoked skills |
 | `model_select` | `setProviderModel` | none — relabels subsequent metrics |
 
 Token and cost figures come straight off the assistant message's `usage` object
@@ -149,8 +149,9 @@ not need to parse a transcript and **does** emit `pi.cost.usage`.
 Every instrument carries `session.id`, `provider`, `model` (`getBaseAttrs()`),
 plus:
 
-- normalized `tool.name` (`pi_` plus the native name in lowercase snake case,
-  such as `pi_read`) on tool metrics, and `success` (a stringified boolean) on
+- normalized `tool.name` and `skill.name` (`pi_` plus the native name in
+  lowercase snake case, such as `pi_read` / `pi_code_review`) on their
+  respective metrics, and `success` (a stringified boolean) on
   `pi.tool_result.count` / `pi.tool.duration`;
 - `type` (`input` / `output` / `cache_read` / `cache_write`) on
   `pi.token.usage` and `pi.cost.usage`;

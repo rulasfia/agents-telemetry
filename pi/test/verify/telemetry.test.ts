@@ -166,6 +166,20 @@ describe("TelemetryCollector", () => {
     });
   });
 
+  describe("recordSkillInvocation", () => {
+    it("increments the skill counter with a harness-prefixed name", () => {
+      collector.recordSessionStart({ sessionId: "sess-123" });
+      collector.recordSkillInvocation({ skillName: "Code Review" });
+
+      const counter = counters.get("pi.skill.invocation.count");
+      expect(counter?.add).toHaveBeenCalledWith(1, {
+        ...baseAttrs("sess-123"),
+        "skill.name": "pi_code_review",
+      });
+      expect(collector.getStatus().skills).toBe(1);
+    });
+  });
+
   describe("getStatus", () => {
     it("returns accumulated counts", () => {
       collector.recordSessionStart({ sessionId: "s1" });
@@ -181,6 +195,7 @@ describe("TelemetryCollector", () => {
         turns: 2,
         tools: 3,
         prompts: 1,
+        skills: 0,
         tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
         durations: {

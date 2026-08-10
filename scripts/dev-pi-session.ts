@@ -74,9 +74,13 @@ async function main() {
   for (let turn = 1; turn <= 3; turn++) {
     console.log(`\n-- turn ${turn} --`);
     await emit("turn_start");
-    await emit("input", { text: `prompt number ${turn}` });
+    await emit("input", { text: turn === 1 ? "/skill:code-review inspect this project" : `prompt number ${turn}` });
 
-    await emit("tool_execution_start", { toolCallId: `call-${turn}-a`, toolName: "Read" });
+    await emit("tool_execution_start", {
+      toolCallId: `call-${turn}-a`,
+      toolName: "Read",
+      ...(turn === 2 ? { args: { path: ".agents/skills/find-skills/SKILL.md" } } : {}),
+    });
     await new Promise((r) => setTimeout(r, 25));
     await emit("tool_execution_end", { toolCallId: `call-${turn}-a`, toolName: "Read", isError: false });
 
@@ -104,6 +108,7 @@ async function main() {
   console.log("  pi.prompt.count       3");
   console.log("  pi.tool_call.count    6   (3 Read, 3 Bash)");
   console.log("  pi.tool_result.count  6   (5 success, 1 failure)");
+  console.log("  pi.skill.invocation.count 2   (direct code-review + model-loaded find-skills)");
   console.log("  pi.turn.count         3");
   console.log("  pi.token.usage        input=3600 output=1020 cache_read=24000 cache_write=1500");
   console.log("  pi.cost.usage         ~0.093 total");

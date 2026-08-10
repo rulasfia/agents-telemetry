@@ -87,6 +87,19 @@ const sequence = [
   { ...base, hook_event_name: "UserPromptSubmit", prompt: "add a dev replay harness" },
   {
     ...base,
+    hook_event_name: "UserPromptExpansion",
+    expansion_type: "slash_command",
+    command_name: "code-review",
+  },
+  {
+    ...base,
+    hook_event_name: "PostToolUse",
+    tool_name: "Skill",
+    tool_input: { skill: "find-skills" },
+    duration_ms: 5,
+  },
+  {
+    ...base,
     hook_event_name: "PostToolUse",
     tool_name: "Read",
     duration_ms: 42,
@@ -160,8 +173,9 @@ try {
   console.log("\nExpected totals for this run:");
   console.log("  pi.session.count      2   (startup + resume; compact is not a new session)");
   console.log("  pi.prompt.count       4");
-  console.log("  pi.tool_call.count    3   (Read, Edit, Bash)");
-  console.log("  pi.tool_result.count  3   (2 success, 1 failure)");
+  console.log("  pi.tool_call.count    4   (Skill, Read, Edit, Bash)");
+  console.log("  pi.tool_result.count  4   (3 success, 1 failure)");
+  console.log("  pi.skill.invocation.count 2   (direct code-review + agent-loaded find-skills)");
   console.log("  pi.turn.count         4");
   console.log("  pi.token.usage        input=4800 output=1360 cache_read=32000 cache_write=2000");
   console.log("  pi.session.duration   2 histogram observations");

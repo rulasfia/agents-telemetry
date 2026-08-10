@@ -14,6 +14,20 @@
         ]
       }
     ],
+    "UserPromptExpansion": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/bridge.cjs"],
+            "timeout": 10,
+            "async": true,
+            "statusMessage": "OTLP skill invocation"
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [

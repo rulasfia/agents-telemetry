@@ -19,12 +19,24 @@ import { createTelemetryCollector, type TelemetryCollector } from "./telemetry.j
 import { getConfig } from "./config.js";
 
 const SERVICE_NAME = "pi-coding-agent";
-const VERSION = "0.6.0";
+const VERSION = "0.7.0";
 
 let collector: TelemetryCollector | null = null;
 let meterProvider: MeterProvider | null = null;
 let currentProvider: string = "unknown";
 let currentModel: string = "unknown";
+
+function skillNameFromInput(text: string) {
+  return /^\/skill:([^\s/]+)/.exec(text)?.[1];
+}
+
+/** Pi loads model-selected skills by reading their standard entrypoint. */
+function skillNameFromTool(toolName: string, args: unknown) {
+  if (toolName.toLowerCase() !== "read" || !args || typeof args !== "object") return;
+  const path = (args as { path?: unknown }).path;
+  if (typeof path !== "string") return;
+  return /(?:^|[\\/])([^\\/]+)[\\/]SKILL\.md$/i.exec(path)?.[1];
+}
 
 // File-based diagnostic logger to avoid clobbering TUI
 class FileDiagLogger implements DiagLogger {
@@ -156,6 +168,8 @@ export default function (pi: ExtensionAPI) {
       toolCallId: event.toolCallId,
       toolName: event.toolName,
     });
+    const skillName = skillNameFromTool(event.toolName, event.args);
+    if (skillName) collector?.recordSkillInvocation({ skillName });
   });
 
   pi.on("tool_execution_end", async (event) => {
@@ -178,6 +192,8 @@ export default function (pi: ExtensionAPI) {
       collector?.recordUserPrompt({
         promptLength: event.text.length,
       });
+      const skillName = skillNameFromInput(event.text);
+      if (skillName) collector?.recordSkillInvocation({ skillName });
     }
     // Update provider/model from current model context
     const model = ctx.model;
@@ -201,6 +217,7 @@ export default function (pi: ExtensionAPI) {
         turns: 0,
         tools: 0,
         prompts: 0,
+        skills: 0,
         tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
         durations: {
@@ -223,6 +240,7 @@ export default function (pi: ExtensionAPI) {
           `  Turns: ${status.turns}\n` +
           `  Tool calls: ${status.tools}\n` +
           `  Prompts: ${status.prompts}\n` +
+          `  Skills: ${status.skills}\n` +
           `  Tokens: ${status.tokens.total} (in: ${status.tokens.input}, out: ${status.tokens.output}, cache: ${status.tokens.cacheRead}/${status.tokens.cacheWrite})\n` +
           `  Cost: ${formatCost(status.cost.total)} (in: ${formatCost(status.cost.input)}, out: ${formatCost(status.cost.output)})\n` +
           `  Durations:\n` +

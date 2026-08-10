@@ -33,6 +33,7 @@ export interface TelemetryCollector {
     sessionId?: string;
   }): void;
   recordUserPrompt(attrs: { promptLength: number; sessionId?: string }): void;
+  recordSkillInvocation(attrs: { skillName: string; sessionId?: string }): void;
   recordUsage(usage: UsageData, sessionId?: string): void;
   /** Update provider/model (e.g., when user switches models mid-session) */
   setProviderModel(provider: string, model: string, sessionId?: string): void;
@@ -52,6 +53,7 @@ export interface TelemetryStatus {
   turns: number;
   tools: number;
   prompts: number;
+  skills: number;
   tokens: {
     input: number;
     output: number;
@@ -79,6 +81,7 @@ interface Counters {
   toolCallCounter: Counter;
   toolResultCounter: Counter;
   promptCounter: Counter;
+  skillInvocationCounter: Counter;
   tokenCounter: Counter;
   costCounter: Counter;
 }
@@ -114,6 +117,10 @@ export function createTelemetryCollector(
       description: "Count of user prompts submitted",
       unit: "1",
     }),
+    skillInvocationCounter: meter.createCounter("pi.skill.invocation.count", {
+      description: "Count of skill invocations",
+      unit: "1",
+    }),
     tokenCounter: meter.createCounter("pi.token.usage", {
       description: "Token usage by type (input/output/cache)",
       unit: "tokens",
@@ -144,6 +151,7 @@ export function createTelemetryCollector(
     turns: 0,
     tools: 0,
     prompts: 0,
+    skills: 0,
     tokens: {
       input: 0,
       output: 0,
@@ -303,6 +311,15 @@ export function createTelemetryCollector(
       const session = getSession(sessionId ?? defaultSessionId);
       session.provider = provider;
       session.model = model;
+    },
+
+    recordSkillInvocation(attrs) {
+      const sessionId = attrs.sessionId ?? defaultSessionId;
+      counters.skillInvocationCounter.add(1, {
+        ...getBaseAttrs(sessionId),
+        "skill.name": normalizeToolName(toolHarness, attrs.skillName),
+      });
+      status.skills++;
     },
 
     recordUsage(usage, sessionId) {

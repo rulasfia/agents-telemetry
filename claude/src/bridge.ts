@@ -224,6 +224,13 @@ function baseAttrs(sessionId: string, state: State) {
   };
 }
 
+function skillNameFromToolInput(event: Record<string, unknown>) {
+  const input = event.tool_input;
+  if (!input || typeof input !== "object") return;
+  const skill = (input as Record<string, unknown>).skill;
+  return typeof skill === "string" ? skill : undefined;
+}
+
 async function main() {
   const config = getConfig("claude-code");
   if (!config.enabled) return;
@@ -309,6 +316,25 @@ async function main() {
       break;
     }
 
+    case "UserPromptExpansion": {
+      persist = false;
+      const skillName = event.command_name as string | undefined;
+      if (event.expansion_type !== "slash_command" || !skillName) break;
+      const attrs = baseAttrs(sessionId, state);
+      emits.push((meter) =>
+        meter
+          .createCounter("pi.skill.invocation.count", {
+            description: "Count of skill invocations",
+            unit: "1",
+          })
+          .add(1, {
+            ...attrs,
+            "skill.name": normalizeToolName("cc", skillName),
+          }),
+      );
+      break;
+    }
+
     case "UserPromptSubmit": {
       state.turnStartTime = now;
       const promptText = (event.prompt as string | undefined) ?? "";
@@ -333,6 +359,7 @@ async function main() {
       const nativeToolName = event.tool_name as string | undefined;
       if (!nativeToolName) break;
       const toolName = normalizeToolName("cc", nativeToolName);
+      const skillName = nativeToolName === "Skill" ? skillNameFromToolInput(event) : undefined;
       const success = eventName === "PostToolUse";
 
       // SessionStart reports no model, so the first turn's events would be
@@ -364,6 +391,17 @@ async function main() {
       }
 
       emits.push((meter) => {
+        if (skillName) {
+          meter
+            .createCounter("pi.skill.invocation.count", {
+              description: "Count of skill invocations",
+              unit: "1",
+            })
+            .add(1, {
+              ...attrs,
+              "skill.name": normalizeToolName("cc", skillName),
+            });
+        }
         meter
           .createCounter("pi.tool_call.count", {
             description: "Count of tool invocations",

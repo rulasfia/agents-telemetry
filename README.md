@@ -246,11 +246,13 @@ exports cumulative from a single long-lived process.
 ### Counters
 
 All counters include base attributes: `session.id`, `provider`, `model`.
-Tool metrics normalize `tool.name` to lowercase snake case with a two-letter
-harness prefix: `pi_read`, `cc_read`, or `oc_read`. This avoids ambiguous pairs
-such as pi's `read` and Claude Code's `Read`; custom and MCP tool names follow
-the same rule. Existing stored series keep their old labels, so queries spanning
-an upgrade may show both forms until the backend's retention window expires.
+Tool and skill metrics normalize their `*.name` values to lowercase snake case
+with a two-letter harness prefix: `pi_read`, `cc_read`, `oc_read`,
+`pi_code_review`, `cc_code_review`, or `oc_code_review`. This avoids ambiguous
+pairs such as pi's `read` and Claude Code's `Read`; custom and MCP tool names
+follow the same rule. Existing stored series keep their old labels, so queries
+spanning an upgrade may show both forms until the backend's retention window
+expires.
 
 > `session.id` is high-cardinality. Drop it in the collector before Prometheus for long-lived aggregate metrics.
 
@@ -261,6 +263,7 @@ an upgrade may show both forms until the backend's retention window expires.
 | `pi.tool_call.count` | Tool invocations | normalized `tool.name` (`pi_*`/`cc_*`/`oc_*`) |
 | `pi.tool_result.count` | Tool completions | normalized `tool.name`, `success` |
 | `pi.prompt.count` | User prompts | `prompt.length.bucket` (`0-100`/`100-1k`/`1k-10k`/`10k+`) |
+| `pi.skill.invocation.count` | Skill invocations | normalized `skill.name` (`pi_*`/`cc_*`/`oc_*`) |
 | `pi.token.usage` | Token consumption | `type` (input/output/cache_read/cache_write) |
 | `pi.cost.usage` | Cost in USD | `type` (input/output/cache_read/cache_write) |
 

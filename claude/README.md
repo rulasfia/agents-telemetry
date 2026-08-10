@@ -78,8 +78,9 @@ state file and the transcript on disk.
 |  read:   readLastModel() scans the transcript tail, but only   |
 |          while the model is still "unknown"                    |
 |  emit:   pi.tool_call.count, pi.tool_result.count,             |
-|          pi.tool.duration     (tool.name = cc_* snake case;    |
-|                                duration from duration_ms)      |
+|          pi.tool.duration; pi.skill.invocation.count for       |
+|          Skill calls (names use cc_* snake case; duration      |
+|          comes from duration_ms)                               |
 +----------------------------------------------------------------+
       |
       v
@@ -220,8 +221,9 @@ stripped, so the special case is gone and both emitters read one variable.
 | Hook | Sync? | Timeout | Metrics emitted | State written |
 |------|-------|---------|-----------------|---------------|
 | `SessionStart` | sync | 10s | `pi.session.count` (not on `source: "compact"`) | ✅ start time, provider/model, `transcriptOffset = transcript size` |
+| `UserPromptExpansion` | async | 10s | `pi.skill.invocation.count` for direct slash-command invocations | ❌ |
 | `UserPromptSubmit` | async | 10s | `pi.prompt.count` (`prompt.length.bucket`) | ✅ `turnStartTime` |
-| `PostToolUse` | async | 10s | `pi.tool_call.count`, `pi.tool_result.count` (`success=true`), `pi.tool.duration` | ❌ |
+| `PostToolUse` | async | 10s | `pi.tool_call.count`, `pi.tool_result.count` (`success=true`), `pi.tool.duration`; `pi.skill.invocation.count` for `Skill` | ❌ |
 | `PostToolUseFailure` | async | 10s | same, `success=false` | ❌ |
 | `Stop` | sync | 10s | `pi.token.usage` (4 `type`s), `pi.turn.duration`, `pi.turn.count` | ✅ offset, model, clears `turnStartTime` |
 | `SessionEnd` | sync | 15s | `pi.session.duration` | ❌ (deletes the file) |

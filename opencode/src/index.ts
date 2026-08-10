@@ -15,7 +15,7 @@ import { getConfig } from "../../pi/src/config.js";
 import { createTelemetryCollector } from "../../pi/src/telemetry.js";
 
 const SERVICE_NAME = "pi-otlp-opencode";
-const VERSION = "0.6.0";
+const VERSION = "0.7.0";
 
 export default Plugin.define({
   id: "rulasfia.agents-telemetry",
@@ -94,6 +94,12 @@ export default Plugin.define({
                   promptLength: event.data.input.data.text.length,
                 });
               }
+              break;
+            case "session.skill.activated":
+              collector.recordSkillInvocation({
+                sessionId: event.data.sessionID,
+                skillName: event.data.id,
+              });
               break;
             case "session.execution.started":
               collector.recordTurnStart(event.data.sessionID);
