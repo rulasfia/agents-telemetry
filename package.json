@@ -1,6 +1,6 @@
 {
   "name": "@rulasfia/agents-telemetry",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "OpenTelemetry metrics and events plugins for coding agents",
   "license": "MIT",
   "author": "rulasfia",
@@ -63,12 +63,5 @@
     "dev:replay": "npm run build:claude && node scripts/dev-replay.mjs",
     "dev:pi": "ATEL_PI=1 ATEL_EXPORTERS=otlp ATEL_ENDPOINT=${ATEL_ENDPOINT:-http://localhost:4418} tsx scripts/dev-pi-session.ts",
     "dev:reset": "rm -f stack/dev-out/*.jsonl && docker compose -f stack/docker-compose.dev.yml restart otel-collector"
-  },
-  "devEngines": {
-    "packageManager": {
-      "name": "npm",
-      "version": "12.0.2",
-      "onFail": "download"
-    }
   }
 }

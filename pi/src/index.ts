@@ -19,7 +19,7 @@ import { createTelemetryCollector, type TelemetryCollector } from "./telemetry.j
 import { getConfig } from "./config.js";
 
 const SERVICE_NAME = "pi-coding-agent";
-const VERSION = "0.7.0";
+const VERSION = "0.7.1";
 
 let collector: TelemetryCollector | null = null;
 let meterProvider: MeterProvider | null = null;
